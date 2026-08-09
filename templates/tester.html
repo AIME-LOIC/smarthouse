@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart House — Switch Tester</title>
+<style>
+  :root {
+    --bg: #0b0f0c;
+    --panel: #121914;
+    --panel-border: #1e2b22;
+    --text: #e1e7e2;
+    --text-dim: #708276;
+    --live: #ffa834;
+    --on: #00ff88;
+    --on-glow: rgba(0, 255, 136, 0.45);
+    --valve-on: #38bdf8;
+    --valve-glow: rgba(56, 189, 248, 0.45);
+    --mono: 'JetBrains Mono', 'Courier New', monospace;
+    --sans: 'Segoe UI', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: radial-gradient(circle at 50% 0%, #142218 0%, var(--bg) 70%);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: 20px;
+  }
+  header {
+    max-width: 1300px; margin: 0 auto 16px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid var(--panel-border); padding-bottom: 12px;
+    flex-wrap: wrap; gap: 10px;
+  }
+  h1 { font-family: var(--mono); font-size: 18px; letter-spacing: 0.5px; margin: 0; }
+  h1 span { color: var(--text-dim); font-weight: 400; }
+  nav a {
+    font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+    text-decoration: none; border: 1px solid var(--panel-border);
+    padding: 4px 10px; border-radius: 4px;
+  }
+  nav a:hover { color: var(--on); border-color: #28543a; }
+  .hint { font-family: var(--mono); font-size: 10px; color: var(--text-dim); }
+
+  main {
+    max-width: 1300px; margin: 0 auto;
+    display: grid; grid-template-columns: 3.2fr 1fr; gap: 20px;
+  }
+  @media (max-width: 1024px) { main { grid-template-columns: 1fr; } }
+
+  .blueprint-card {
+    background: #fdfdfd; border: 2px solid var(--panel-border);
+    border-radius: 8px; padding: 16px; position: relative;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.6);
+    display: flex; flex-direction: column; gap: 16px;
+  }
+
+  .zone-box {
+    position: relative; width: 100%;
+    background-color: #f7f9f8;
+    background-image:
+      linear-gradient(to right, rgba(0,0,0,0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0,0,0,0.04) 1px, transparent 1px);
+    background-size: 20px 20px;
+    border: 2px dashed #a0aab0; border-radius: 6px;
+    padding: 8px;
+  }
+  .zone-label {
+    position: absolute; top: 10px; left: 12px;
+    font-family: var(--mono); font-size: 10px; font-weight: 700;
+    color: #556066; letter-spacing: 1px; text-transform: uppercase;
+    background: rgba(255,255,255,0.85); padding: 2px 6px; border-radius: 3px;
+    z-index: 5; border: 1px solid #ccd2d6;
+  }
+
+  svg.cad-plan { width: 100%; height: auto; display: block; }
+
+  .wall { fill: #1a1a1a; }
+  .wall-cut { fill: #fdfdfd; }
+  .window { fill: #aee2f3; stroke: #1a1a1a; stroke-width: 1; }
+  .door-arc { fill: none; stroke: #888; stroke-width: 1; stroke-dasharray: 2,2; }
+  .door-leaf { stroke: #222; stroke-width: 2.5; stroke-linecap: round; }
+  .gate-bars { stroke: #d94040; stroke-width: 3; stroke-dasharray: 5,3; }
+  .room-text { font-family: var(--mono); font-size: 12px; fill: #444; font-weight: 700; letter-spacing: 0.4px; }
+  .dim-text { font-family: var(--mono); font-size: 9px; fill: #999; }
+  .hallway-text { font-family: var(--mono); font-size: 10px; fill: #bbb; letter-spacing: 2px; }
+  .hallway-sub { font-family: var(--mono); font-size: 9px; fill: #9fb8ac; letter-spacing: 1px; }
+  .furniture { fill: none; stroke: #b5b5b5; stroke-width: 1; }
+  .hallway-fill { fill: #eef1ef; }
+
+  /* clickable switch nodes */
+  .device-node { position: absolute; transform: translate(-50%, -50%); z-index: 10; cursor: pointer; }
+  .light-node {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #333; border: 2px solid #111;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; color: #666;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+  .light-node:hover { border-color: #666; transform: scale(1.08); }
+  .light-node.active {
+    background: var(--on); border-color: #fff; color: #000;
+    box-shadow: 0 0 14px var(--on-glow), 0 0 26px var(--on-glow);
+  }
+  .light-node.pending { opacity: 0.5; }
+
+  .tag {
+    position: absolute; transform: translate(-50%, -50%);
+    font-family: var(--mono); font-size: 9px; font-weight: 600;
+    padding: 4px 8px; background: rgba(15,20,16,0.92); color: #aaa;
+    border: 1px solid #333; border-radius: 4px; white-space: nowrap;
+    z-index: 10; cursor: pointer; transition: all 0.2s ease;
+  }
+  .tag:hover { border-color: #666; transform: translate(-50%, -50%) scale(1.06); }
+  .tag.door.active { background: #0f2b1c; color: var(--on); border-color: var(--on); box-shadow: 0 0 10px rgba(0,255,136,0.3); }
+  .tag.gate.active { background: #3b1e10; color: var(--live); border-color: var(--live); box-shadow: 0 0 10px rgba(255,168,52,0.3); }
+  .tag.valve.active { background: #0f2330; color: var(--valve-on); border-color: var(--valve-on); box-shadow: 0 0 10px var(--valve-glow); }
+  .tag.pending { opacity: 0.5; }
+
+  .side-panel { display: flex; flex-direction: column; gap: 16px; }
+  .panel-block {
+    background: var(--panel); border: 1px solid var(--panel-border);
+    border-radius: 8px; padding: 16px;
+  }
+  .panel-block h2 {
+    font-family: var(--mono); font-size: 11px; text-transform: uppercase;
+    letter-spacing: 1.5px; color: var(--text-dim); margin: 0 0 12px;
+  }
+  input[type=text] {
+    width: 100%; padding: 9px; background: #0a0f0b;
+    border: 1px solid var(--panel-border); color: var(--text);
+    border-radius: 4px; font-family: var(--mono); font-size: 12px;
+    margin-bottom: 8px;
+  }
+  button.send-btn {
+    width: 100%; background: #1c3324; color: var(--on);
+    border: 1px solid #2c5c42; padding: 9px; border-radius: 4px;
+    cursor: pointer; font-family: var(--mono); font-size: 12px;
+  }
+  button.send-btn:hover { background: #244430; }
+  #result {
+    font-family: var(--mono); font-size: 11px; background: #0a0f0b;
+    border: 1px solid var(--panel-border); border-radius: 6px;
+    padding: 10px; white-space: pre-wrap; min-height: 50px; color: var(--text-dim);
+  }
+  .log-panel { max-height: 420px; overflow-y: auto; }
+  .log-entry { font-family: var(--mono); font-size: 11px; padding: 7px 0; border-bottom: 1px solid var(--panel-border); color: var(--text-dim); }
+  .log-entry .t { color: var(--text); }
+  .log-entry .src { color: var(--live); }
+
+  /* socket buttons */
+  .socket-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 2px; }
+  .socket-btn {
+    background: #0f1a12; border: 1px solid var(--panel-border); color: var(--text-dim);
+    font-family: var(--mono); font-size: 10px; padding: 7px 4px; border-radius: 4px;
+    cursor: pointer; transition: all 0.15s; text-align: center;
+  }
+  .socket-btn:hover { border-color: #2c5c42; color: var(--text); }
+  .socket-btn.active { background: #0f2b1c; color: var(--on); border-color: var(--on); box-shadow: 0 0 8px var(--on-glow); }
+  .socket-btn.pending { opacity: 0.4; }
+  .selected-socket { border-color: var(--live) !important; box-shadow: 0 0 10px rgba(255,168,52,0.5) !important; }
+
+  /* mic button */
+  .transcript-row { display: flex; gap: 6px; margin-bottom: 8px; }
+  .transcript-row input { flex: 1; margin-bottom: 0; }
+  .mic-btn {
+    width: 38px; height: 38px; flex-shrink: 0;
+    background: #1c3324; border: 1px solid #2c5c42; border-radius: 4px;
+    color: var(--on); font-size: 16px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+  .mic-btn:hover { background: #244430; }
+  .mic-btn.listening { background: #3b1010; border-color: #ff4444; color: #ff4444; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
+  .stt-status { font-family: var(--mono); font-size: 10px; color: var(--text-dim); margin-bottom: 6px; min-height: 14px; }
+  .energy-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+  .energy-label { font-family: var(--mono); font-size: 10px; color: var(--text-dim); }
+  .energy-val { font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--on); }
+  .energy-val.warn { color: var(--live); }
+  .energy-val.dead { color: #ff4444; }
+  .energy-bar-wrap { background: #0a0f0b; border: 1px solid var(--panel-border); border-radius: 4px; height: 8px; margin-bottom: 10px; overflow: hidden; }
+  .energy-bar { height: 100%; background: var(--on); border-radius: 4px; transition: width 0.8s ease, background 0.4s; }
+  .energy-bar.warn { background: var(--live); }
+  .energy-bar.dead { background: #ff4444; }
+  .energy-cutoff-banner { display: none; font-family: var(--mono); font-size: 10px; color: #ff4444; background: #1a0505; border: 1px solid #5a1010; border-radius: 4px; padding: 6px 8px; margin-bottom: 8px; }
+  .energy-cutoff-banner.show { display: block; }
+  /* Responsive breakpoints */
+  @media (max-width: 720px) {
+    body { padding: 12px; }
+    h1 { font-size: 15px; }
+    .hint { display: none; }
+    header { padding-bottom: 10px; }
+    main { gap: 14px; }
+    .blueprint-card { padding: 10px; gap: 12px; }
+    .zone-label { font-size: 9px; padding: 2px 5px; }
+    .tag { font-size: 8px; padding: 3px 6px; }
+    .light-node { width: 22px; height: 22px; font-size: 10px; }
+    .panel-block { padding: 12px; }
+    .modal-box { max-width: 94vw; padding: 16px; }
+  }
+  @media (max-width: 480px) {
+    nav a { font-size: 10px; padding: 3px 8px; }
+    h1 { font-size: 13px; }
+    .light-node { width: 20px; height: 20px; }
+    .tag { font-size: 7.5px; padding: 2px 5px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><a href="/" style="color: inherit; text-decoration: none;">SMART HOUSE</a> <span>// Switch Tester</span></h1>
+  <span class="hint">click any light / door / valve on the plan to toggle it</span>
+  <span class="hint" id="api-addr" style="color:var(--live);"></span>
+  <nav>
+    <a href="/">About Specs</a>
+    <a href="/xray">X-Ray Tour</a>
+    <a href="/dashboard">Blueprint Dashboard</a>
+    <a href="/threed">3D View</a>
+  </nav>
+</header>
+
+<main>
+  <div class="blueprint-card">
+
+    <!-- BOX 1: MAIN HOUSE — identical floor plan/geometry to the dashboard -->
+    <div class="zone-box" id="house-zone">
+      <div class="zone-label">Box 1: Main House Interior</div>
+
+      <svg class="cad-plan" viewBox="0 0 1000 610" xmlns="http://www.w3.org/2000/svg">
+        <g stroke="#999" stroke-width="0.75">
+          <line x1="60" y1="34" x2="940" y2="34" />
+          <line x1="60" y1="29" x2="60" y2="39" />
+          <line x1="940" y1="29" x2="940" y2="39" />
+          <line x1="34" y1="60" x2="34" y2="570" />
+          <line x1="29" y1="60" x2="39" y2="60" />
+          <line x1="29" y1="570" x2="39" y2="570" />
+        </g>
+        <text x="460" y="26" class="dim-text">21,120 mm</text>
+        <text x="16" y="315" class="dim-text" transform="rotate(-90 16 315)">12,240 mm</text>
+
+        <path d="M 60,60 L 940,60 L 940,570 L 460,570 L 460,554 L 924,554 L 924,76 L 76,76 L 76,554 L 400,554 L 400,570 L 60,570 Z"
+              class="wall" fill-rule="evenodd" />
+
+        <rect x="76" y="300" width="848" height="90" class="hallway-fill" />
+        <text x="460" y="349" class="hallway-text" text-anchor="middle">HALLWAY / CIRCULATION</text>
+        <text x="460" y="364" class="hallway-sub" text-anchor="middle">≈ 1.5 m clear width</text>
+
+        <rect x="76"  y="300" width="84"  height="14" class="wall" />
+        <rect x="200" y="300" width="150" height="14" class="wall" />
+        <rect x="390" y="300" width="190" height="14" class="wall" />
+        <rect x="620" y="300" width="180" height="14" class="wall" />
+        <rect x="840" y="300" width="84"  height="14" class="wall" />
+
+        <rect x="76"  y="376" width="414" height="14" class="wall" />
+        <rect x="620" y="376" width="180" height="14" class="wall" />
+        <rect x="840" y="376" width="84"  height="14" class="wall" />
+
+        <rect x="266" y="76" width="14" height="224" class="wall" />
+        <rect x="490" y="76" width="14" height="224" class="wall" />
+        <rect x="704" y="76" width="14" height="224" class="wall" />
+
+        <rect x="490" y="390" width="14" height="164" class="wall" />
+        <rect x="704" y="390" width="14" height="164" class="wall" />
+
+        <rect x="120" y="60" width="90"  height="14" class="window" />
+        <rect x="340" y="60" width="100" height="14" class="window" />
+        <rect x="560" y="60" width="80"  height="14" class="window" />
+        <rect x="780" y="60" width="90"  height="14" class="window" />
+        <rect x="60" y="140" width="14" height="90"  class="window" />
+        <rect x="60" y="440" width="14" height="90"  class="window" />
+        <rect x="926" y="120" width="14" height="80" class="window" />
+        <rect x="926" y="440" width="14" height="80" class="window" />
+
+        <path d="M 200,314 A 40,40 0 0,1 160,354" class="door-arc" />
+        <line x1="160" y1="314" x2="160" y2="354" class="door-leaf" />
+        <path d="M 390,314 A 40,40 0 0,1 350,354" class="door-arc" />
+        <line x1="350" y1="314" x2="350" y2="354" class="door-leaf" />
+        <path d="M 620,314 A 40,40 0 0,1 580,354" class="door-arc" />
+        <line x1="580" y1="314" x2="580" y2="354" class="door-leaf" />
+        <path d="M 840,314 A 40,40 0 0,1 800,354" class="door-arc" />
+        <line x1="800" y1="314" x2="800" y2="354" class="door-leaf" />
+
+        <path d="M 620,376 A 40,40 0 0,0 580,336" class="door-arc" />
+        <line x1="580" y1="376" x2="580" y2="336" class="door-leaf" />
+        <path d="M 840,376 A 40,40 0 0,0 800,336" class="door-arc" />
+        <line x1="800" y1="376" x2="800" y2="336" class="door-leaf" />
+
+        <path d="M 460,554 A 60,60 0 0,0 400,494" class="door-arc" />
+        <line x1="400" y1="554" x2="400" y2="494" class="door-leaf" />
+
+        <rect x="100" y="410" width="60" height="110" rx="4" class="furniture" />
+        <rect x="190" y="480" width="130" height="50" rx="4" class="furniture" />
+        <rect x="185" y="410" width="140" height="45" class="furniture" />
+
+        <rect x="300" y="90" width="180" height="36" class="furniture" />
+        <circle cx="330" cy="108" r="8" class="furniture" />
+        <circle cx="360" cy="108" r="8" class="furniture" />
+        <rect x="310" y="150" width="100" height="46" rx="2" class="furniture" />
+
+        <rect x="760" y="430" width="140" height="100" rx="4" class="furniture" />
+        <rect x="530" y="500" width="130" height="36" class="furniture" />
+        <rect x="100" y="100" width="120" height="90" rx="4" class="furniture" />
+        <rect x="530" y="90" width="120" height="80" rx="4" class="furniture" />
+        <rect x="750" y="100" width="120" height="90" rx="4" class="furniture" />
+
+        <text x="100" y="210" class="room-text">ROOM 1 · GUEST</text>
+        <text x="100" y="226" class="dim-text">4.6 m × 5.4 m</text>
+
+        <text x="310" y="210" class="room-text">KITCHEN &amp; DINING</text>
+        <text x="310" y="226" class="dim-text">5.0 m × 5.4 m</text>
+
+        <text x="530" y="210" class="room-text">ROOM 3</text>
+        <text x="530" y="226" class="dim-text">4.8 m × 5.4 m</text>
+
+        <text x="745" y="210" class="room-text">BATHROOM</text>
+        <text x="745" y="226" class="dim-text">4.9 m × 5.4 m</text>
+
+        <text x="100" y="400" class="room-text">LIVING ROOM</text>
+        <text x="100" y="416" class="dim-text">9.9 m × 3.9 m</text>
+
+        <text x="530" y="410" class="room-text">ROOM 2 · STUDY</text>
+        <text x="530" y="426" class="dim-text">4.8 m × 3.9 m</text>
+
+        <text x="745" y="410" class="room-text">ROOM 4 · MASTER</text>
+        <text x="745" y="426" class="dim-text">4.9 m × 3.9 m</text>
+      </svg>
+
+      <!-- clickable house devices (same positions as dashboard) -->
+      <div class="device-node" data-device="light_living_top_left" style="top: 68.6%; left: 15%;" title="Living Room Top Left"><div class="light-node" id="icon-light_living_top_left">💡</div></div>
+      <div class="device-node" data-device="light_living_top_right" style="top: 68.6%; left: 34%;" title="Living Room Top Right"><div class="light-node" id="icon-light_living_top_right">💡</div></div>
+      <div class="device-node" data-device="light_living_center" style="top: 77.2%; left: 28%;" title="Living Room Center"><div class="light-node" id="icon-light_living_center">💡</div></div>
+      <div class="device-node" data-device="light_living_bottom_left" style="top: 85.7%; left: 15%;" title="Living Room Bottom Left"><div class="light-node" id="icon-light_living_bottom_left">💡</div></div>
+      <div class="device-node" data-device="light_living_bottom_right" style="top: 85.7%; left: 34%;" title="Living Room Bottom Right"><div class="light-node" id="icon-light_living_bottom_right">💡</div></div>
+
+      <div class="device-node" data-device="light_kitchen" style="top: 23.8%; left: 38.5%;" title="Kitchen Light"><div class="light-node" id="icon-light_kitchen">💡</div></div>
+      <div class="tag valve" data-device="valve_kitchen" id="valve-valve_kitchen" style="top: 30.4%; left: 43%;">🚰 KITCHEN VALVE: <span id="state-valve_kitchen">CLOSE</span></div>
+
+      <div class="device-node" data-device="light_room_1" style="top: 30.4%; left: 17.1%;" title="Room 1 Light"><div class="light-node" id="icon-light_room_1">💡</div></div>
+      <div class="device-node" data-device="light_room_3" style="top: 30.4%; left: 60.4%;" title="Room 3 Light"><div class="light-node" id="icon-light_room_3">💡</div></div>
+      <div class="device-node" data-device="light_room_2" style="top: 77.2%; left: 60.4%;" title="Room 2 Light"><div class="light-node" id="icon-light_room_2">💡</div></div>
+      <div class="device-node" data-device="light_room_4" style="top: 77.2%; left: 82.1%;" title="Room 4 Light"><div class="light-node" id="icon-light_room_4">💡</div></div>
+
+      <!-- Appliances placed on the floor plan -->
+      <div class="device-node" data-device="tv" style="top: 80%; left: 22%;" title="TV (100W)"><div class="light-node" id="icon-tv">📺</div></div>
+      <div class="device-node" data-device="fridge" style="top: 18%; left: 33%;" title="Fridge (150W)"><div class="light-node" id="icon-fridge">🧊</div></div>
+      <div class="device-node" data-device="microwave" style="top: 28%; left: 33%;" title="Microwave (1200W)"><div class="light-node" id="icon-microwave">📡</div></div>
+
+      <!-- Sockets on floor plan -->
+      <!-- Living room: 4 sockets along the bottom wall -->
+      <div class="device-node" data-device="socket_living_1" style="top: 92%; left: 8%;" title="Living Socket 1 — Phone"><div class="light-node" id="icon-socket_living_1">🔌</div></div>
+      <div class="device-node" data-device="socket_living_2" style="top: 92%; left: 16%;" title="Living Socket 2 — Radio"><div class="light-node" id="icon-socket_living_2">🔌</div></div>
+      <div class="device-node" data-device="socket_living_3" style="top: 92%; left: 24%;" title="Living Socket 3 — Laptop"><div class="light-node" id="icon-socket_living_3">🔌</div></div>
+      <div class="device-node" data-device="socket_living_4" style="top: 92%; left: 32%;" title="Living Socket 4 — Fan"><div class="light-node" id="icon-socket_living_4">🔌</div></div>
+      <!-- Room sockets -->
+      <div class="device-node" data-device="socket_room_1" style="top: 42%; left: 8%;" title="Room 1 Socket"><div class="light-node" id="icon-socket_room_1">🔌</div></div>
+      <div class="device-node" data-device="socket_room_2" style="top: 88%; left: 55%;" title="Room 2 Socket"><div class="light-node" id="icon-socket_room_2">🔌</div></div>
+      <div class="device-node" data-device="socket_room_3" style="top: 42%; left: 55%;" title="Room 3 Socket"><div class="light-node" id="icon-socket_room_3">🔌</div></div>
+      <div class="device-node" data-device="socket_room_4" style="top: 88%; left: 78%;" title="Room 4 Socket"><div class="light-node" id="icon-socket_room_4">🔌</div></div>
+      <!-- Water heater in bathroom -->
+      <div class="device-node" data-device="water_heater" style="top: 18%; left: 82%;" title="Water Heater (2000W)"><div class="light-node" id="icon-water_heater">🚰</div></div>
+
+      <div class="tag door" data-device="door_room_1" id="door-door_room_1" style="top: 51.3%; left: 18%;">ROOM 1: <span id="state-door_room_1">CLOSE</span></div>
+      <div class="tag door" data-device="door_kitchen" id="door-door_kitchen" style="top: 51.3%; left: 37%;">KITCHEN: <span id="state-door_kitchen">CLOSE</span></div>
+      <div class="tag door" data-device="door_room_3" id="door-door_room_3" style="top: 51.3%; left: 60%;">ROOM 3: <span id="state-door_room_3">CLOSE</span></div>
+      <div class="tag door" data-device="door_living_room" id="door-door_living_room" style="top: 96%; left: 43%;">LIVING MAIN DOOR: <span id="state-door_living_room">CLOSE</span></div>
+      <div class="tag door" data-device="door_room_2" id="door-door_room_2" style="top: 61%; left: 60%;">ROOM 2: <span id="state-door_room_2">CLOSE</span></div>
+      <div class="tag door" data-device="door_room_4" id="door-door_room_4" style="top: 61%; left: 82%;">MASTER: <span id="state-door_room_4">CLOSE</span></div>
+    </div>
+
+    <!-- BOX 2: MAIN GATE & PERIMETER COMPOUND — identical to dashboard -->
+    <div class="zone-box" id="gate-zone">
+      <div class="zone-label">Box 2: Outdoor Main Gate Compound</div>
+
+      <svg class="cad-plan" viewBox="0 0 1000 160" xmlns="http://www.w3.org/2000/svg">
+        <rect x="60" y="30" width="880" height="100" fill="none" stroke="#1a1a1a" stroke-width="12" rx="4" />
+        <rect x="360" y="24" width="280" height="20" class="wall-cut" />
+        <line x1="360" y1="30" x2="640" y2="30" class="gate-bars" />
+        <line x1="360" y1="50" x2="360" y2="130" stroke="#ccc" stroke-dasharray="4,4" stroke-width="1.5" />
+        <line x1="640" y1="50" x2="640" y2="130" stroke="#ccc" stroke-dasharray="4,4" stroke-width="1.5" />
+        <text x="500" y="70" class="room-text" fill="#d94040" text-anchor="middle">MAIN ENTRANCE GATEWAY</text>
+        <text x="500" y="88" class="dim-text" text-anchor="middle">AUTOMATED ACCESS CONTROL</text>
+      </svg>
+
+      <div class="device-node" data-device="light_gate" style="top: 30%; left: 28%;" title="Gate Light"><div class="light-node" id="icon-light_gate">💡</div></div>
+      <div class="tag gate" data-device="gate_main" id="door-gate_main" style="top: 30%; left: 50%;">MAIN GATE: <span id="state-gate_main">CLOSE</span></div>
+    </div>
+
+  </div>
+
+  <div class="side-panel">
+    <div class="panel-block">
+      <h2>⚡ Electricity (RWF)</h2>
+      <div class="energy-cutoff-banner" id="cutoff-banner">⚠ Balance exhausted — all devices cut off</div>
+      <div class="energy-row">
+        <span class="energy-label">Balance</span>
+        <span class="energy-val" id="e-balance">— RWF</span>
+      </div>
+      <div class="energy-bar-wrap"><div class="energy-bar" id="e-bar" style="width:0%"></div></div>
+      <div class="energy-row">
+        <span class="energy-label">Live draw</span>
+        <span class="energy-val" id="e-watts">0 W</span>
+      </div>
+      <div class="energy-row">
+        <span class="energy-label">Spent</span>
+        <span class="energy-val" id="e-spent" style="color:var(--text-dim); font-size:11px;">0.00 RWF</span>
+      </div>
+      <div class="energy-row">
+        <span class="energy-label">Consumed</span>
+        <span class="energy-val" id="e-wh" style="color:var(--text-dim); font-size:11px;">0.0000 Wh</span>
+      </div>
+      <div class="topup-row">
+        <input type="text" id="topup-amount" placeholder="Amount in RWF">
+        <button class="send-btn" onclick="doTopup()">Top up</button>
+      </div>
+    </div>
+    <div class="panel-block">
+      <h2>🧪 Ask AI (online mode)</h2>
+      <div class="stt-status" id="stt-status"></div>
+      <div class="transcript-row">
+        <input type="text" id="transcript" placeholder="type or tap 🎤 to speak">
+        <button class="mic-btn" id="mic-btn" title="Hold to speak" onclick="toggleMic()">🎤</button>
+      </div>
+      <button class="send-btn" onclick="sendTranscript()">Send</button>
+      <div id="result" style="margin-top:8px;font-family:var(--mono);font-size:11px;background:#0a0f0b;border:1px solid var(--panel-border);border-radius:6px;padding:10px;white-space:pre-wrap;min-height:40px;color:var(--text-dim);">—</div>
+    </div>
+    <div class="panel-block">
+      <h2>🔌 Socket Control</h2>
+      <div id="socket-selected-label" style="font-family:var(--mono);font-size:10px;color:var(--text-dim);margin-bottom:8px;">tap a socket on the plan to select it</div>
+      <div class="socket-grid" id="purpose-btns" style="opacity:0.3;pointer-events:none;">
+        <button class="socket-btn" onclick="useSocket('📱 Phone')">📱 Phone</button>
+        <button class="socket-btn" onclick="useSocket('📻 Radio')">📻 Radio</button>
+        <button class="socket-btn" onclick="useSocket('💻 Laptop')">💻 Laptop</button>
+        <button class="socket-btn" onclick="useSocket('💨 Fan')">💨 Fan</button>
+        <button class="socket-btn" onclick="useSocket('🗡️ Iron')">🗡️ Iron</button>
+        <button class="socket-btn" onclick="useSocket('💡 Lamp')">💡 Lamp</button>
+      </div>
+    </div>
+    <div class="panel-block log-panel">
+      <h2>Command Log</h2>
+      <div id="log"><div style="color: var(--text-dim); font-size: 11px;">No commands yet.</div></div>
+    </div>
+  </div>
+</main>
+
+
+<script>
+let deviceStates = {};
+let deviceTypes = {};
+let topupMax = 0;  // tracks highest balance seen for the progress bar
+
+async function loadDevices() {
+  const res = await fetch("/devices");
+  const devices = await res.json();
+  Object.entries(devices).forEach(([id, d]) => { deviceTypes[id] = d.type; });
+}
+
+async function pollState() {
+  try {
+    const res = await fetch("/state");
+    const data = await res.json();
+    Object.entries(data.devices).forEach(([id, d]) => {
+      deviceStates[id] = d.state;
+      deviceTypes[id] = d.type;
+    });
+    render(data.devices, data.log);
+    pollEnergy();
+  } catch (e) { /* keep last known UI on transient failure */ }
+}
+
+function render(devices, log) {
+  Object.entries(devices).forEach(([id, d]) => {
+    const isActive = d.state === "on" || d.state === "open";
+    if (d.type === "light") {
+      const icon = document.getElementById(`icon-${id}`);
+      if (icon) { icon.classList.toggle("active", isActive); icon.classList.remove("pending"); }
+    } else if (d.type === "socket") {
+      const btn = document.getElementById(`sbtn-${id}`);
+      if (btn) { btn.classList.toggle("active", isActive); btn.classList.remove("pending"); }
+      const icon = document.getElementById(`icon-${id}`);
+      if (icon) { icon.classList.toggle("active", isActive); icon.classList.remove("pending"); }
+    } else if (d.type === "appliance") {
+      const icon = document.getElementById(`icon-${id}`);
+      if (icon) { icon.classList.toggle("active", isActive); icon.classList.remove("pending"); }
+      const tag = document.getElementById(`valve-${id}`);
+      const stateTxt = document.getElementById(`state-${id}`);
+      if (tag && stateTxt) { stateTxt.textContent = d.state.toUpperCase(); tag.classList.toggle("active", isActive); tag.classList.remove("pending"); }
+    } else {
+      const tag = document.getElementById(`door-${id}`);
+      const stateTxt = document.getElementById(`state-${id}`);
+      if (tag && stateTxt) { stateTxt.textContent = d.state.toUpperCase(); tag.classList.toggle("active", isActive); tag.classList.remove("pending"); }
+    }
+  });
+
+  const logEl = document.getElementById("log");
+  logEl.innerHTML = log.length
+    ? log.map(e => `<div class="log-entry"><span class="t">${e.time}</span> — ${e.device} → <b>${e.action}</b> <span class="src">[${e.source}]</span></div>`).join("")
+    : '<div style="color: var(--text-dim); font-size: 11px;">No commands yet.</div>';
+}
+
+let selectedSocket = null;
+const socketLabel = {};  // socketId -> active purpose label (or null)
+
+function _refreshPurposeBtns() {
+  const active = socketLabel[selectedSocket] || null;
+  document.querySelectorAll("#purpose-btns .socket-btn").forEach(b => {
+    b.classList.toggle("active", b.textContent.trim() === active);
+  });
+}
+
+function selectSocket(id) {
+  if (selectedSocket) document.getElementById(`icon-${selectedSocket}`)?.classList.remove("selected-socket");
+  selectedSocket = id;
+  document.getElementById(`icon-${id}`)?.classList.add("selected-socket");
+  const room = id.replace("socket_", "").replace("_", " ").replace(/(\w+)/g, w => w[0].toUpperCase() + w.slice(1));
+  document.getElementById("socket-selected-label").textContent = `→ ${room} selected`;
+  document.getElementById("socket-selected-label").style.color = "var(--on)";
+  document.getElementById("purpose-btns").style.opacity = "1";
+  document.getElementById("purpose-btns").style.pointerEvents = "auto";
+  _refreshPurposeBtns();
+}
+
+async function useSocket(label) {
+  if (!selectedSocket) return;
+  const isOn = deviceStates[selectedSocket] === "on";
+  const action = isOn ? "off" : "on";
+  await fetch("/command", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ device: selectedSocket, action, source: `web-${label}` }),
+  });
+  await pollState();
+  const nowOn = deviceStates[selectedSocket] === "on";
+  socketLabel[selectedSocket] = nowOn ? label : null;
+  _refreshPurposeBtns();
+}
+
+function onOffFor(type) { return (type === "light" || type === "appliance" || type === "socket") ? ["on", "off"] : ["open", "close"]; }
+
+async function toggleDevice(el) {
+  const id = el.dataset.device;
+  if (!id) return;
+  const type = deviceTypes[id] || (
+    id.startsWith("light") ? "light" :
+    id.startsWith("socket") ? "socket" :
+    id.startsWith("valve") ? "valve" :
+    id === "water_heater" || id === "fridge" || id === "tv" || id === "microwave" ? "appliance" :
+    "door"
+  );
+
+  // sockets: select them, don't toggle directly
+  if (type === "socket") { selectSocket(id); return; }
+
+  const [onVal, offVal] = onOffFor(type);
+  const current = deviceStates[id] || offVal;
+  const nextAction = current === onVal ? offVal : onVal;
+
+  document.getElementById(`icon-${id}`)?.classList.add("pending");
+  el.classList.add("pending");
+  await fetch("/command", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ device: id, action: nextAction, source: "web-tester" }),
+  });
+  pollState();
+}
+
+document.querySelectorAll("[data-device]").forEach(el => {
+  el.addEventListener("click", () => toggleDevice(el));
+});
+
+async function sendTranscript() {
+  const transcript = document.getElementById("transcript").value.trim();
+  if (!transcript) return;
+  document.getElementById("result").textContent = "sending...";
+  const res = await fetch("/interpret", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ transcript }),
+  });
+  document.getElementById("result").textContent = JSON.stringify(await res.json(), null, 2);
+  pollState();
+}
+
+document.getElementById("transcript").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") sendTranscript();
+});
+
+// Speech-to-text
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+let listening = false;
+
+if (SpeechRecognition) {
+  recognition = new SpeechRecognition();
+  recognition.lang = "en-US";
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+
+  recognition.onstart = () => {
+    listening = true;
+    document.getElementById("mic-btn").classList.add("listening");
+    document.getElementById("stt-status").textContent = "🔴 listening...";
+  };
+  recognition.onresult = (e) => {
+    const transcript = Array.from(e.results).map(r => r[0].transcript).join("");
+    document.getElementById("transcript").value = transcript;
+    if (e.results[e.results.length - 1].isFinal) {
+      document.getElementById("stt-status").textContent = "✔ got it — sending...";
+      sendTranscript();
+    }
+  };
+  recognition.onerror = (e) => {
+    document.getElementById("stt-status").textContent = "⚠ " + e.error;
+    stopMic();
+  };
+  recognition.onend = () => stopMic();
+} else {
+  document.getElementById("mic-btn").title = "Speech recognition not supported in this browser";
+  document.getElementById("mic-btn").style.opacity = "0.3";
+  document.getElementById("mic-btn").style.cursor = "not-allowed";
+}
+
+function toggleMic() {
+  if (!recognition) return;
+  if (listening) { recognition.stop(); }
+  else { document.getElementById("transcript").value = ""; recognition.start(); }
+}
+
+function stopMic() {
+  listening = false;
+  document.getElementById("mic-btn").classList.remove("listening");
+  setTimeout(() => { document.getElementById("stt-status").textContent = ""; }, 2000);
+}
+
+async function pollEnergy() {
+  try {
+    const res = await fetch("/energy");
+    const e = await res.json();
+    const bal = e.balance_kwh;                          // kWh remaining
+    const consumed = e.total_consumed_kwh;              // lifetime kWh used
+    const spentRwf = e.total_topup_rwf - bal * _avgRate(e); // approx RWF spent
+    if (bal > topupMax) topupMax = bal;
+    const pct = topupMax > 0 ? Math.min(100, (bal / topupMax) * 100) : 0;
+    const cls = pct < 10 ? "dead" : pct < 25 ? "warn" : "";
+    const balEl = document.getElementById("e-balance");
+    const barEl = document.getElementById("e-bar");
+    balEl.textContent = bal.toFixed(4) + " kWh";
+    balEl.className = "energy-val " + cls;
+    barEl.style.width = pct + "%";
+    barEl.className = "energy-bar " + cls;
+    document.getElementById("e-watts").textContent = e.current_watts + " W";
+    document.getElementById("e-spent").textContent = e.total_topup_rwf.toFixed(2) + " RWF topped up";
+    document.getElementById("e-wh").textContent = (consumed * 1000).toFixed(4) + " Wh consumed";
+    document.getElementById("cutoff-banner").classList.toggle("show", bal <= 0 && consumed > 0);
+  } catch (_) {}
+}
+
+function _avgRate(e) {
+  // rough average rate from tariff tiers for display purposes only
+  const tiers = e.tariff_tiers || [];
+  return tiers.length ? tiers[0].rate_rwf_per_kwh : 212;
+}
+
+async function doTopup() {
+  const amt = parseFloat(document.getElementById("topup-amount").value);
+  if (!amt || amt <= 0) return;
+  const res = await fetch("/energy/topup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amount_rwf: amt }),
+  });
+  const json = await res.json();
+  if (json.ok) {
+    topupMax = json.balance_kwh;
+    document.getElementById("topup-amount").value = "";
+    pollEnergy();
+  }
+}
+
+document.getElementById("topup-amount").addEventListener("keydown", e => { if (e.key === "Enter") doTopup(); });
+
+loadDevices();
+pollState();
+setInterval(pollState, 1500);
+
+document.getElementById("api-addr").textContent = window.location.origin;
+
+if (location.protocol !== "https:" && location.hostname !== "localhost") {
+  const s = document.getElementById("stt-status");
+  s.style.color = "#ffa834";
+  s.textContent = "⚠ mic needs HTTPS — run: python app.py --https";
+  const btn = document.getElementById("mic-btn");
+  btn.style.opacity = "0.35"; btn.style.cursor = "not-allowed";
+  btn.onclick = null;
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FRIDAY — AI for Smart Energy Management</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #040805;
+    --panel: #0a120b;
+    --panel-2: #0d1710;
+    --border: #16281a;
+    --text: #ecfdf5;
+    --text-dim: #7c9083;
+    --green: #10b981;
+    --green-glow: rgba(16,185,129,0.45);
+    --orange: #f59e0b;
+    --blue: #38bdf8;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Space Grotesk', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: auto; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); overflow-x: hidden; }
+
+  #scene-canvas { position: fixed; inset: 0; z-index: 0; display: block; }
+  #vignette {
+    position: fixed; inset: 0; z-index: 1; pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(4,8,5,0.75) 100%);
+  }
+
+  /* ---------- top bar ---------- */
+  #topbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 20;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 18px 28px;
+    background: linear-gradient(to bottom, rgba(4,8,5,0.85), transparent);
+    font-family: var(--mono);
+  }
+  .logo { font-size: 13px; font-weight: 700; color: var(--green); letter-spacing: 1px; display: flex; align-items: center; gap: 8px; text-decoration: none; }
+  .logo::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); display: inline-block; }
+  #topbar nav { display: flex; gap: 8px; align-items: center; }
+  #topbar nav a, .mode-pill {
+    color: var(--text-dim); text-decoration: none; font-size: 10.5px;
+    border: 1px solid var(--border); padding: 7px 13px; border-radius: 4px;
+    background: var(--panel); transition: all .2s; font-family: var(--mono);
+  }
+  #topbar nav a:hover { color: var(--green); border-color: #2c5c42; }
+  .mode-pill { color: var(--green); display: flex; align-items: center; gap: 6px; }
+  .mode-pill .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); animation: blink 1.4s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+  /* ---------- right progress rail ---------- */
+  #rail {
+    position: fixed; right: 26px; top: 50%; transform: translateY(-50%); z-index: 20;
+    display: flex; flex-direction: column; gap: 16px; font-family: var(--mono);
+  }
+  #rail .stage { display: flex; flex-direction: row-reverse; align-items: center; gap: 10px; opacity: .35; transition: opacity .3s; }
+  #rail .stage.active { opacity: 1; }
+  #rail .stage .n { font-size: 9px; color: var(--text-dim); width: 14px; text-align: right; }
+  #rail .stage.active .n { color: var(--green); }
+  #rail .stage .bar { width: 22px; height: 2px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  #rail .stage.active .bar { background: var(--green); box-shadow: 0 0 6px var(--green-glow); }
+  #rail .stage .label { font-size: 9.5px; color: var(--text-dim); display: none; text-align: right; }
+  @media (min-width: 900px) { #rail .stage .label { display: block; } }
+  #rail .stage.active .label { color: var(--text); }
+
+  /* ---------- scroll rail hint ---------- */
+  #scrollhint {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 20;
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: 2px;
+    display: flex; flex-direction: column; align-items: center; gap: 6px; transition: opacity .4s;
+  }
+  #scrollhint .chev { animation: dn 1.6s infinite; font-size: 12px; color: var(--green); }
+  @keyframes dn { 0%,100%{transform:translateY(0);opacity:.4} 50%{transform:translateY(6px);opacity:1} }
+
+  /* ---------- narrative sections ---------- */
+  #story { position: relative; z-index: 10; }
+  .beat {
+    min-height: 100vh; display: flex; align-items: center; padding: 0 8vw;
+    pointer-events: none;
+  }
+  .beat .copy { max-width: 480px; opacity: 0; transform: translateY(18px); transition: opacity .5s ease, transform .5s ease; }
+  .beat .copy.show { opacity: 1; transform: translateY(0); }
+  .beat .eyebrow { font-family: var(--mono); font-size: 10.5px; color: var(--green); letter-spacing: 3px; text-transform: uppercase; margin-bottom: 14px; display: block; }
+  .beat h2 { font-size: clamp(28px, 4.2vw, 46px); line-height: 1.08; letter-spacing: -1px; margin-bottom: 16px; }
+  .beat p { color: var(--text-dim); font-size: 15px; line-height: 1.65; max-width: 420px; }
+  .beat .stat-row { display: flex; gap: 26px; margin-top: 22px; }
+  .beat .stat b { display: block; font-family: var(--mono); font-size: 20px; color: var(--green); }
+  .beat .stat span { font-size: 10px; color: var(--text-dim); }
+  .beat.right { justify-content: flex-end; }
+  .beat.right .copy { text-align: right; margin-left: auto; }
+  .beat.right .stat-row { justify-content: flex-end; }
+
+  /* ---------- closing beat: feature list ---------- */
+  .beat .feature-list { list-style: none; margin-top: 20px; display: flex; flex-direction: column; gap: 10px; max-width: 420px; }
+  .beat.right .feature-list { margin-left: auto; }
+  .beat .feature-list li { display: flex; align-items: baseline; gap: 10px; font-size: 14px; color: var(--text); }
+  .beat.right .feature-list li { flex-direction: row-reverse; }
+  .beat .feature-list li::before { content: '—'; color: var(--green); font-family: var(--mono); }
+  #loading {
+    position: fixed; inset: 0; z-index: 60; background: var(--bg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+    font-family: var(--mono); color: var(--text-dim); font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    transition: opacity .5s ease;
+  }
+  #loading .dot { color: var(--green); animation: blink 1s infinite; }
+
+  @media (max-width: 760px) {
+    .beat { padding: 0 6vw; }
+    .beat .copy { max-width: 90%; }
+    #rail { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="loading">Waking up FRIDAY<span class="dot">_</span></div>
+
+<canvas id="scene-canvas"></canvas>
+<div id="vignette"></div>
+
+<div id="topbar">
+  <a href="/" class="logo">FRIDAY <span style="color:var(--text-dim);font-weight:400;">// AI for Smart Energy Management</span></a>
+  <nav>
+    <a href="/">About</a>
+    <a href="/dashboard">Blueprint</a>
+    <a href="/threed">3D Walk</a>
+    <a href="/web">Tester</a>
+    <span class="mode-pill"><span class="dot"></span> X-RAY MODE</span>
+  </nav>
+</div>
+
+<div id="rail">
+  <div class="stage" data-i="0"><span class="n">01</span><span class="bar"></span><span class="label">The problem</span></div>
+  <div class="stage" data-i="1"><span class="n">02</span><span class="bar"></span><span class="label">Meet FRIDAY</span></div>
+  <div class="stage" data-i="2"><span class="n">03</span><span class="bar"></span><span class="label">House alive</span></div>
+  <div class="stage" data-i="3"><span class="n">04</span><span class="bar"></span><span class="label">Blueprint</span></div>
+  <div class="stage" data-i="4"><span class="n">05</span><span class="bar"></span><span class="label">Intelligence</span></div>
+  <div class="stage" data-i="5"><span class="n">06</span><span class="bar"></span><span class="label">Remote control</span></div>
+  <div class="stage" data-i="6"><span class="n">07</span><span class="bar"></span><span class="label">Tech stack</span></div>
+  <div class="stage" data-i="7"><span class="n">08</span><span class="bar"></span><span class="label">Different</span></div>
+  <div class="stage" data-i="8"><span class="n">09</span><span class="bar"></span><span class="label">Vision</span></div>
+</div>
+
+<div id="scrollhint"><span>SCROLL</span><span class="chev">⌄</span></div>
+
+<div id="story">
+  <section class="beat" data-i="0">
+    <div class="copy">
+      <span class="eyebrow">01 — The problem</span>
+      <h2>The invisible problem.</h2>
+      <p>Every day, energy bleeds from homes — silently, invisibly, expensively. The waste isn't malicious. It's human: lights left on in empty rooms, AC cooling nobody, chargers drawing power around the clock, TVs on standby, appliances forgotten and running. Most electricity waste happens because people simply forget.</p>
+      <div class="stat-row">
+        <div class="stat"><b>19</b><span>rooms &amp; zones</span></div>
+        <div class="stat"><b>30</b><span>connected devices</span></div>
+        <div class="stat"><b>live</b><span>backend, not staged</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="beat right" data-i="1">
+    <div class="copy">
+      <span class="eyebrow">02 — The solution</span>
+      <h2>Meet FRIDAY.</h2>
+      <p>FRIDAY is not another smart home app. FRIDAY is an intelligent presence — one that understands your home, thinks ahead, and acts on your behalf.</p>
+      <ul class="feature-list">
+        <li>Understands your house</li>
+        <li>Watches energy in real time</li>
+        <li>Learns your daily routines</li>
+        <li>Protects your wallet</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="beat" data-i="2">
+    <div class="copy">
+      <span class="eyebrow">03 — Core feature</span>
+      <h2>Your house becomes alive.</h2>
+      <p>FRIDAY creates a living digital twin of your home. Every room glows in real time — color-coded by energy consumption. No more guessing. Just clarity at a glance. Watch the rooms around you shift color as the scan reads their live draw.</p>
+      <ul class="feature-list">
+        <li>🟢 Green — normal consumption, all is well</li>
+        <li>🟡 Yellow — medium usage, worth monitoring</li>
+        <li>🔴 Red — high consumption, immediate attention</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="beat right" data-i="3">
+    <div class="copy">
+      <span class="eyebrow">04 — Interface</span>
+      <h2>Interactive blueprint.</h2>
+      <p>A precision-engineered blueprint becomes your command center. Each room displays floating data cards with live metrics — tap any room to control every connected device instantly.</p>
+      <ul class="feature-list">
+        <li>Device — status &amp; identity</li>
+        <li>Power — real-time wattage draw</li>
+        <li>Cost — live energy expenditure</li>
+        <li>Running time — duration tracking per device</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="beat" data-i="4">
+    <div class="copy">
+      <span class="eyebrow">05 — Intelligence</span>
+      <h2>FRIDAY intelligence.</h2>
+      <p>Seven AI capabilities working in concert — continuously, silently, protectively.</p>
+      <ul class="feature-list">
+        <li>Forgotten appliance detection — "Living Room TV has been running for 4 hours."</li>
+        <li>Bill prediction — forecast monthly costs before the bill arrives</li>
+        <li>Unusual usage alerts — instant flags on abnormal power spikes</li>
+        <li>Habit learning &amp; scheduling — adapts to your routines automatically</li>
+        <li>Natural language answers — ask anything about your home's energy</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="beat right" data-i="5">
+    <div class="copy">
+      <span class="eyebrow">06 — Connectivity</span>
+      <h2>Remote control — anywhere in the world.</h2>
+      <p>Your home never sleeps. Neither does FRIDAY. Control every system from any device, anywhere on earth — with zero latency and military-grade security. From your phone to every device in your home: a seamless, encrypted chain of command powered by FRIDAY AI.</p>
+      <ul class="feature-list">
+        <li>Your phone</li>
+        <li>FRIDAY cloud</li>
+        <li>AI processing</li>
+        <li>Smart home hub</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="beat" data-i="6">
+    <div class="copy">
+      <span class="eyebrow">07 — Architecture</span>
+      <h2>Technology stack.</h2>
+      <p>FRIDAY is built on a lean, modern stack designed for speed, reliability, and scalability. Every layer — from the SVG blueprint interface to the AI inference engine — is engineered for real-time performance in premium residential environments. The meter below is actually counting, computed by the same backend running under this page.</p>
+      <div class="stat-row">
+        <div class="stat"><b id="hud-watts">— W</b><span>current draw</span></div>
+        <div class="stat"><b id="hud-balance">— kWh</b><span>balance left</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="beat right" data-i="7">
+    <div class="copy">
+      <span class="eyebrow">08 — Differentiation</span>
+      <h2>Why FRIDAY is different.</h2>
+      <p>Six capabilities no competitor delivers as one unified, intelligent system.</p>
+      <ul class="feature-list">
+        <li>Digital twin — a living replica of your home's energy</li>
+        <li>AI assistant — natural language intelligence built in</li>
+        <li>Remote control — full command from anywhere on earth</li>
+        <li>Energy intelligence — deep consumption insights</li>
+        <li>Live blueprint — real-time architectural energy visualization</li>
+        <li>Predictive analytics — forecast bills, detect anomalies</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="beat" data-i="8" style="min-height: 100vh;">
+    <div class="copy">
+      <span class="eyebrow">09 — Vision</span>
+      <h2>The future of smart living starts here.</h2>
+      <p>FRIDAY is not a product. It is a new standard for how intelligent homes should think, feel, and protect. The question is no longer whether your home should be smart — it's whether it should be truly alive.</p>
+      <ul class="feature-list">
+        <li>For homeowners — protect your investment, reduce waste, live effortlessly</li>
+        <li>For developers — deliver homes that think, differentiate with intelligence</li>
+        <li>For investors — enter the fastest-growing segment in proptech</li>
+      </ul>
+      <p style="margin-top:16px; color: var(--text); font-weight: 600;">FRIDAY doesn't just manage energy. It redefines what a home can be.</p>
+    </div>
+  </section>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const API_BASE = '';
+
+/* ================= floor-plan constants (shared with /threed) ================= */
+const S = 0.024;
+const WALL_H = 2.7;
+const svgToWorld = (x, y) => new THREE.Vector3(x * S, 0, y * S);
+const houseXMin = 60 * S, houseXMax = 940 * S, houseYMin = 60 * S, houseYMax = 570 * S;
+const houseCenter = new THREE.Vector3((60 + 940) / 2 * S, 0, (60 + 570) / 2 * S);
+
+const ROOMS = [
+  { key: 'Room 1',      rect: [76, 266, 76, 300] },
+  { key: 'Kitchen',     rect: [280, 490, 76, 300] },
+  { key: 'Room 3',      rect: [504, 704, 76, 300] },
+  { key: 'Bathroom',    rect: [718, 924, 76, 300] },
+  { key: 'Living Room', rect: [76, 490, 390, 554] },
+  { key: 'Room 2',      rect: [504, 704, 390, 554] },
+  { key: 'Room 4',      rect: [718, 924, 390, 554] },
+  { key: 'Hallway',     rect: [76, 924, 300, 390] },
+  { key: 'Outdoors',    rect: [360, 640, 570, 640] },
+];
+function roomCenter(key) {
+  const r = ROOMS.find(r => r.key === key) || ROOMS[ROOMS.length - 1];
+  const [x1, x2, y1, y2] = r.rect;
+  return svgToWorld((x1 + x2) / 2, (y1 + y2) / 2);
+}
+
+const wallsSvg = [
+  [60, 940, 60, 76], [924, 940, 60, 570], [60, 400, 554, 570],
+  [460, 940, 554, 570], [60, 76, 60, 570],
+  [76, 160, 300, 314], [200, 350, 300, 314], [390, 580, 300, 314],
+  [620, 800, 300, 314], [840, 924, 300, 314],
+  [76, 260, 376, 390], [300, 490, 376, 390],
+  [620, 800, 376, 390], [840, 924, 376, 390],
+  [266, 280, 76, 300], [490, 504, 76, 300], [704, 718, 76, 300],
+  [490, 504, 390, 554], [704, 718, 390, 554],
+];
+
+/* ================= renderer / scene / camera ================= */
+const canvas = document.getElementById('scene-canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x040805);
+scene.fog = new THREE.FogExp2(0x040805, 0.014);
+
+const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 300);
+
+const hemi = new THREE.HemisphereLight(0x9fd8c4, 0x0a1a10, 0.55);
+scene.add(hemi);
+const key = new THREE.DirectionalLight(0xdfffe9, 0.9);
+key.position.set(18, 26, 14);
+scene.add(key);
+const rim = new THREE.DirectionalLight(0x2fe0a0, 0.35);
+rim.position.set(-14, 10, -18);
+scene.add(rim);
+
+/* ground */
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(200, 200),
+  new THREE.MeshStandardMaterial({ color: 0x060b07, roughness: 1 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -0.02;
+scene.add(ground);
+const grid = new THREE.GridHelper(200, 100, 0x123322, 0x0a1510);
+scene.add(grid);
+
+/* ================= layer groups ================= */
+const scanGroup = new THREE.Group(); scene.add(scanGroup);        // raw glb
+const roofGroup = new THREE.Group(); scene.add(roofGroup);        // stage 2
+const structGroup = new THREE.Group(); scene.add(structGroup);    // walls/floors, always-ish
+const electricalGroup = new THREE.Group(); scene.add(electricalGroup);
+const plumbingGroup = new THREE.Group(); scene.add(plumbingGroup);
+const devicesGroup = new THREE.Group(); scene.add(devicesGroup);
+
+/* ---- structure: floors + x-ray wall edges ---- */
+const floorMat = new THREE.MeshStandardMaterial({
+  color: 0x0e1f16, roughness: 0.95, transparent: true, opacity: 0.9,
+  polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1, // push back so overlay tiles never coplanar-flicker
+});
+function addFloor(x1, x2, y1, y2) {
+  const w = (x2 - x1) * S, d = (y2 - y1) * S;
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, d), floorMat.clone());
+  mesh.rotation.x = -Math.PI / 2;
+  const c = svgToWorld((x1 + x2) / 2, (y1 + y2) / 2);
+  mesh.position.set(c.x, 0.001, c.z);
+  mesh.renderOrder = 0; // fixed paint order across the whole scene — avoids camera-angle-dependent transparency sort flicker
+  structGroup.add(mesh);
+}
+ROOMS.filter(r => r.key !== 'Outdoors').forEach(r => addFloor(...r.rect));
+
+/* ---- FRIDAY digital twin: rooms grow + glow by live energy consumption ---- */
+const ROOM_USAGE = {
+  'Room 1': 'yellow', 'Kitchen': 'red', 'Room 3': 'green', 'Bathroom': 'yellow',
+  'Living Room': 'red', 'Room 2': 'green', 'Room 4': 'yellow', 'Hallway': 'green',
+};
+const USAGE_COLOR = { green: 0x22c55e, yellow: 0xf5c542, red: 0xef4444 };
+const colorGroup = new THREE.Group(); scene.add(colorGroup);
+const usageTiles = []; // { mesh, mat, baseY }
+ROOMS.filter(r => r.key !== 'Outdoors').forEach(r => {
+  const level = ROOM_USAGE[r.key] || 'green';
+  const [x1, x2, y1, y2] = r.rect;
+  const w = (x2 - x1) * S * 0.82, d = (y2 - y1) * S * 0.82;
+  const mat = new THREE.MeshStandardMaterial({
+    color: USAGE_COLOR[level], emissive: USAGE_COLOR[level], emissiveIntensity: 0,
+    roughness: 0.5, transparent: true, opacity: 0, depthWrite: false, // no self z-fight while translucent
+    polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, // pulled toward camera, clear of the floor
+  });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.scale.setScalar(0.001); // starts collapsed, grows in as the "alive" beat plays
+  const c = svgToWorld((x1 + x2) / 2, (y1 + y2) / 2);
+  mesh.position.set(c.x, 0.06, c.z);
+  mesh.renderOrder = 1;
+  colorGroup.add(mesh);
+  usageTiles.push({ mesh, mat, baseY: 0.06 });
+});
+
+const wallSolidMat = new THREE.MeshStandardMaterial({ color: 0x223a2c, roughness: 0.9, transparent: true, opacity: 0.9 });
+const wallEdgeMat = new THREE.LineBasicMaterial({ color: 0x36d69a, transparent: true, opacity: 0.0 });
+const wallMeshes = [];
+wallsSvg.forEach(([x1, x2, y1, y2]) => {
+  const w = Math.abs(x2 - x1) * S, d = Math.abs(y2 - y1) * S;
+  const geo = new THREE.BoxGeometry(Math.max(w, 0.05), WALL_H, Math.max(d, 0.05));
+  const mesh = new THREE.Mesh(geo, wallSolidMat.clone());
+  const c = svgToWorld((x1 + x2) / 2, (y1 + y2) / 2);
+  mesh.position.set(c.x, WALL_H / 2, c.z);
+  mesh.renderOrder = 2;
+  structGroup.add(mesh);
+  const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), wallEdgeMat.clone());
+  edges.position.copy(mesh.position);
+  edges.renderOrder = 3;
+  structGroup.add(edges);
+  wallMeshes.push({ solid: mesh.material, edge: edges.material });
+});
+
+/* ---- roof (stage 1 hero -> lifts away at stage 2) ---- */
+const roofMat = new THREE.MeshStandardMaterial({ color: 0x18321f, roughness: 0.7, metalness: 0.1, transparent: true, opacity: 1 });
+const roofMesh = new THREE.Mesh(
+  new THREE.BoxGeometry(houseXMax - houseXMin + 0.6, 0.12, houseYMax - houseYMin + 0.6),
+  roofMat
+);
+roofMesh.position.set(houseCenter.x, WALL_H + 0.1, houseCenter.z);
+roofMesh.renderOrder = 4;
+roofGroup.add(roofMesh);
+// a few "solar panel" strips for texture
+for (let i = 0; i < 5; i++) {
+  const strip = new THREE.Mesh(
+    new THREE.BoxGeometry(1.6, 0.03, 0.9),
+    new THREE.MeshStandardMaterial({ color: 0x0c1a28, roughness: 0.3, metalness: 0.6, transparent: true, opacity: 1 })
+  );
+  strip.position.set(houseCenter.x - 6 + i * 1.9, WALL_H + 0.18, houseCenter.z - 4);
+  strip.renderOrder = 4;
+  roofGroup.add(strip);
+}
+
+/* ---- electrical layer: bulb markers + wires back to a panel point ---- */
+const panelPoint = svgToWorld(76, 300); panelPoint.y = 2.55;
+const bulbMat = new THREE.MeshStandardMaterial({ color: 0xffdca0, emissive: 0xffaa33, emissiveIntensity: 0, roughness: 0.4 });
+const wireMat = new THREE.LineBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0 });
+const bulbMats = [];
+ROOMS.filter(r => r.key !== 'Outdoors').forEach(r => {
+  const c = roomCenter(r.key); c.y = 2.5;
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.075, 12, 12), bulbMat.clone());
+  bulb.position.copy(c);
+  electricalGroup.add(bulb);
+  bulbMats.push(bulb.material);
+  const pts = [panelPoint.clone(), new THREE.Vector3(c.x, 2.62, c.z), c.clone()];
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), wireMat.clone());
+  electricalGroup.add(line);
+  bulbMats.push(line.material);
+});
+
+/* ---- plumbing layer: water heater + valve + pipes ---- */
+const pipeMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0 });
+const heaterMat = new THREE.MeshStandardMaterial({ color: 0x1c4a63, emissive: 0x0ea5e9, emissiveIntensity: 0, roughness: 0.4, metalness: 0.4, transparent: true, opacity: 0 });
+const valveMat = heaterMat.clone();
+const meterPoint = svgToWorld(900, 600); meterPoint.y = 0.4;
+
+const heaterPos = roomCenter('Bathroom'); heaterPos.y = 1.1;
+const heater = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.65, 16), heaterMat);
+heater.position.copy(heaterPos);
+plumbingGroup.add(heater);
+
+const valvePos = roomCenter('Kitchen'); valvePos.y = 0.5;
+const valve = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.3, 12), valveMat);
+valve.rotation.z = Math.PI / 2;
+valve.position.copy(valvePos);
+plumbingGroup.add(valve);
+
+[heaterPos, valvePos].forEach(p => {
+  const pts = [meterPoint.clone(), new THREE.Vector3(p.x, 0.3, p.z), p.clone()];
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), pipeMat.clone());
+  plumbingGroup.add(line);
+});
+
+/* ---- devices layer: sockets / appliances markers per room ---- */
+const deviceMarkerMat = new THREE.MeshStandardMaterial({ color: 0x2c5c42, emissive: 0x10b981, emissiveIntensity: 0, roughness: 0.5, transparent: true, opacity: 0 });
+ROOMS.filter(r => !['Outdoors', 'Hallway'].includes(r.key)).forEach(r => {
+  const c = roomCenter(r.key); c.y = 0.35;
+  const box = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, 0.1), deviceMarkerMat.clone());
+  box.position.set(c.x + 0.6, c.y, c.z + 0.6);
+  devicesGroup.add(box);
+});
+
+/* (gate removed — outdoors stays open through the final beat) */
+
+/* fixed paint order for every remaining transparent layer — deterministic regardless of camera angle */
+electricalGroup.traverse(o => { if (o.isMesh || o.isLine) o.renderOrder = 5; });
+plumbingGroup.traverse(o => { if (o.isMesh || o.isLine) o.renderOrder = 6; });
+devicesGroup.traverse(o => { if (o.isMesh || o.isLine) o.renderOrder = 7; });
+
+/* ================= raw GLB scan (hero, stage 0) ================= */
+let scanMesh = null;
+new GLTFLoader().load('/static/smart_house.glb', (gltf) => {
+  scanMesh = gltf.scene;
+  scanMesh.traverse(o => {
+    if (o.isMesh) {
+      o.material = new THREE.MeshStandardMaterial({
+        color: 0x9fd8c4, vertexColors: true, transparent: true, opacity: 0.5,
+        roughness: 0.6, wireframe: false,
+      });
+    }
+  });
+  // the source mesh was authored Z-up (extents box) — align to our Y-up world
+  scanMesh.rotation.x = -Math.PI / 2;
+  scanMesh.updateWorldMatrix(true, true);
+
+  const box = new THREE.Box3().setFromObject(scanMesh);
+  const size = new THREE.Vector3(); box.getSize(size);
+  const center = new THREE.Vector3(); box.getCenter(center);
+
+  const targetSize = new THREE.Vector3(houseXMax - houseXMin, WALL_H, houseYMax - houseYMin);
+  const scale = Math.min(targetSize.x / (size.x || 1), targetSize.z / (size.z || 1));
+
+  const wrapper = new THREE.Group();
+  wrapper.add(scanMesh);
+  scanMesh.position.sub(center);
+  wrapper.scale.setScalar(scale);
+  wrapper.position.set(houseCenter.x, targetSize.y / 2, houseCenter.z);
+  scanGroup.add(wrapper);
+}, undefined, (err) => console.warn('smart_house.glb failed to load — hero scan will be skipped', err));
+
+/* ================= scroll-driven camera + layer choreography ================= */
+const stages = [
+  { p: 0.00, cam: [houseCenter.x + 22, 17, houseCenter.z + 26], look: houseCenter },                              // 01 the problem — wide raw scan
+  { p: 0.12, cam: [houseCenter.x + 16, 13, houseCenter.z + 18], look: houseCenter },                              // 02 meet FRIDAY — frame settles in
+  { p: 0.28, cam: [houseCenter.x + 4,  16, houseCenter.z + 9],  look: houseCenter },                              // 03 house becomes alive — angled overhead to read room colors
+  { p: 0.42, cam: [roomCenter('Kitchen').x - 2, 6, roomCenter('Kitchen').z + 4], look: roomCenter('Kitchen') },   // 04 interactive blueprint — close on a room
+  { p: 0.55, cam: [houseCenter.x - 8,  9,  houseCenter.z + 2],  look: houseCenter },                              // 05 FRIDAY intelligence — orbiting overview
+  { p: 0.68, cam: [houseCenter.x + 4, 20, houseCenter.z + 15],  look: houseCenter },                              // 06 remote control — pulled back, "anywhere on earth", angled not top-down
+  { p: 0.80, cam: [houseCenter.x + 14, 12, houseCenter.z + 16], look: houseCenter },                              // 07 tech stack — live meter close-in
+  { p: 0.90, cam: [houseCenter.x + 6, 17, houseCenter.z + 18],  look: houseCenter },                              // 08 why different — system map, angled not top-down
+  { p: 1.00, cam: [houseCenter.x + 9, 16, houseCenter.z + 20], look: houseCenter },                              // 09 vision — full house, pulled back
+];
+function lerpStages(p) {
+  for (let i = 0; i < stages.length - 1; i++) {
+    const a = stages[i], b = stages[i + 1];
+    if (p >= a.p && p <= b.p) {
+      const t = (p - a.p) / (b.p - a.p || 1);
+      const cam = a.cam.map((v, idx) => THREE.MathUtils.lerp(v, b.cam[idx], t));
+      const look = new THREE.Vector3().lerpVectors(a.look, b.look, t);
+      return { cam, look };
+    }
+  }
+  const last = stages[stages.length - 1];
+  return { cam: last.cam, look: last.look };
+}
+
+let targetProgress = 0, smoothProgress = 0;
+function computeProgress() {
+  const max = document.body.scrollHeight - window.innerHeight;
+  targetProgress = max > 0 ? THREE.MathUtils.clamp(window.scrollY / max, 0, 1) : 0;
+}
+window.addEventListener('scroll', computeProgress, { passive: true });
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  computeProgress();
+});
+
+/* fade text beats + rail as they cross viewport center */
+const beats = Array.from(document.querySelectorAll('.beat .copy'));
+const railStages = Array.from(document.querySelectorAll('#rail .stage'));
+function updateBeats() {
+  const vh = window.innerHeight;
+  beats.forEach(el => {
+    const r = el.closest('.beat').getBoundingClientRect();
+    const center = r.top + r.height / 2;
+    const dist = Math.abs(center - vh / 2);
+    el.classList.toggle('show', dist < vh * 0.55);
+  });
+}
+function updateRail(p) {
+  const idx = Math.min(8, Math.floor(p * 9));
+  railStages.forEach((el, i) => el.classList.toggle('active', i === idx));
+}
+
+/* opacity helpers */
+function setOp(mat, v) { if (mat) mat.opacity = v; }
+function smoothstep(edge0, edge1, x) {
+  const t = THREE.MathUtils.clamp((x - edge0) / (edge1 - edge0 || 1), 0, 1);
+  return t * t * (3 - 2 * t);
+}
+
+function updateLayers(p) {
+  // stage windows (soft-edged via smoothstep) — layers accumulate as FRIDAY's
+  // digital twin builds itself up, then ease back slightly for the closing beat
+  const closeEase = (edge0) => (1 - 0.3 * smoothstep(edge0, 1.0, p));
+
+  const scanVis   = 1 - smoothstep(0.0, 0.10, p);                                    // 01 the problem — raw scan
+  const roofVis   = 1 - smoothstep(0.08, 0.20, p);                                    // 02 meet FRIDAY — roof lifts away
+  const structVis = smoothstep(0.02, 0.12, p) * closeEase(0.9);                       // frame + rooms, stays visible
+  const edgeVis   = smoothstep(0.08, 0.20, p) * closeEase(0.9);
+  const colorVis  = smoothstep(0.20, 0.32, p) * closeEase(0.92);                       // 03 house becomes alive — usage colors
+  const elecVis   = smoothstep(0.16, 0.26, p) * closeEase(0.9);                        // circuits glow alongside the twin
+  const plumbVis  = smoothstep(0.30, 0.42, p) * closeEase(0.9);
+  const devVis    = smoothstep(0.38, 0.50, p) * closeEase(0.92);                       // 04 interactive blueprint — device markers
+
+  scanGroup.visible = scanVis > 0.01;
+  scanGroup.traverse(o => { if (o.isMesh) { o.material.opacity = 0.55 * scanVis; o.renderOrder = -1; } });
+  scanGroup.position.y = 0.4 * scanVis;
+
+  roofMat.opacity = roofVis;
+  roofMesh.position.y = WALL_H + 0.1 + (1 - roofVis) * 3.2;
+  roofGroup.children.forEach(c => { if (c !== roofMesh) { c.material.opacity = roofVis; c.position.y = WALL_H + 0.18 + (1 - roofVis) * 3.2; } });
+
+  wallMeshes.forEach(({ solid, edge }) => { solid.opacity = structVis; edge.opacity = edgeVis * 0.8; });
+  structGroup.children.forEach(c => { if (c.geometry && c.geometry.type === 'PlaneGeometry') c.material.opacity = Math.max(0.25, structVis); });
+
+  // FRIDAY's digital twin: rooms grow up out of the floor and glow green / yellow / red by usage
+  const pulse = 0.85 + 0.15 * Math.sin(performance.now() * 0.0018);
+  usageTiles.forEach(({ mesh, mat, baseY }) => {
+    mat.opacity = 0.62 * colorVis;
+    mat.emissiveIntensity = colorVis * pulse * 1.3;
+    mesh.scale.setScalar(Math.max(0.001, colorVis * pulse));
+    mesh.position.y = baseY + colorVis * 0.05;
+  });
+
+  bulbMats.forEach((m, i) => {
+    if (m.emissiveIntensity !== undefined) { m.emissiveIntensity = elecVis * 1.4; }
+    if (m.opacity !== undefined) m.opacity = elecVis;
+  });
+
+  heaterMat.opacity = plumbVis; heaterMat.emissiveIntensity = plumbVis * 1.1;
+  valveMat.opacity = plumbVis; valveMat.emissiveIntensity = plumbVis * 1.1;
+  plumbingGroup.children.forEach(c => { if (c.isLine) c.material.opacity = plumbVis * 0.9; });
+
+  devicesGroup.children.forEach(c => { c.material.opacity = devVis; c.material.emissiveIntensity = devVis * (livePulse ? 1 : 0.5); });
+
+  document.getElementById('scrollhint').style.opacity = p > 0.03 ? 0 : 1;
+}
+
+
+let livePulse = false;
+setInterval(() => { livePulse = !livePulse; }, 900);
+
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta();
+  smoothProgress += (targetProgress - smoothProgress) * Math.min(1, dt * 3.2);
+
+  const { cam, look } = lerpStages(smoothProgress);
+  camera.position.lerp(new THREE.Vector3(...cam), Math.min(1, dt * 3));
+  const lookTarget = camera.userData.look || look.clone();
+  camera.userData.look = lookTarget.lerp(look, Math.min(1, dt * 3));
+  camera.lookAt(camera.userData.look);
+
+  // gentle orbit drift so it never feels static
+  const t = performance.now() * 0.00006;
+  camera.position.x += Math.sin(t) * 0.01;
+
+  updateLayers(smoothProgress);
+  updateBeats();
+  updateRail(smoothProgress);
+
+  renderer.render(scene, camera);
+}
+
+/* ================= live backend: energy for the "Live systems" stat ================= */
+async function fetchJSON(path, opts) {
+  const res = await fetch(API_BASE + path, opts);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function pollEnergy() {
+  try {
+    const e = await fetchJSON('/energy');
+    document.getElementById('hud-watts').textContent = `${e.current_watts} W`;
+    document.getElementById('hud-balance').textContent = `${e.balance_kwh.toFixed(2)} kWh`;
+  } catch (e) { /* ignore */ }
+}
+
+/* ================= boot ================= */
+(async function init() {
+  computeProgress();
+  await pollEnergy();
+  setInterval(pollEnergy, 2500);
+  document.getElementById('loading').style.opacity = '0';
+  setTimeout(() => document.getElementById('loading').style.display = 'none', 500);
+  animate();
+})();
+</script>
+</body>
+</html>

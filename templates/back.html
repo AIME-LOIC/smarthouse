@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart House — Architectural Floor Plan</title>
+<style>
+  :root {
+    --bg: #0b0f0c;
+    --panel: #121914;
+    --panel-border: #1e2b22;
+    --text: #e1e7e2;
+    --text-dim: #708276;
+    --live: #ffa834;
+    --on: #00ff88;
+    --on-glow: rgba(0, 255, 136, 0.45);
+    --valve-on: #38bdf8;
+    --valve-glow: rgba(56, 189, 248, 0.45);
+    --mono: 'JetBrains Mono', 'Courier New', monospace;
+    --sans: 'Segoe UI', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: radial-gradient(circle at 50% 0%, #142218 0%, var(--bg) 70%);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: 20px;
+  }
+  header {
+    max-width: 1300px;
+    margin: 0 auto 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--panel-border);
+    padding-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  h1 { font-family: var(--mono); font-size: 18px; letter-spacing: 0.5px; margin: 0; }
+  h1 span { color: var(--text-dim); font-weight: 400; }
+  .status-pill {
+    font-family: var(--mono); font-size: 11px; color: var(--on);
+    border: 1px solid #28543a; background: #0d2116;
+    padding: 4px 10px; border-radius: 4px;
+  }
+  .status-pill.stale { color: #e66840; border-color: #592e20; background: #21120d; }
+  nav a {
+    font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+    text-decoration: none; border: 1px solid var(--panel-border);
+    padding: 4px 10px; border-radius: 4px;
+  }
+  nav a:hover { color: var(--on); border-color: #28543a; }
+
+  main {
+    max-width: 1300px; margin: 0 auto;
+    display: grid; grid-template-columns: 3.2fr 1fr; gap: 20px;
+  }
+  @media (max-width: 1024px) { main { grid-template-columns: 1fr; } }
+
+  .blueprint-card {
+    background: #fdfdfd; border: 2px solid var(--panel-border);
+    border-radius: 8px; padding: 16px; position: relative;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.6);
+  }
+  .cad-container {
+    position: relative; width: 100%;
+    background-color: #f7f9f8;
+    background-image:
+      linear-gradient(to right, rgba(0,0,0,0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0,0,0,0.04) 1px, transparent 1px);
+    background-size: 20px 20px;
+    border: 1px solid #dcdcdc; border-radius: 4px;
+  }
+  svg.cad-plan { width: 100%; height: auto; display: block; }
+
+  .wall { fill: #1a1a1a; }
+  .wall-cut { fill: #fdfdfd; }
+  .window { fill: #aee2f3; stroke: #1a1a1a; stroke-width: 1; }
+  .door-arc { fill: none; stroke: #888; stroke-width: 1; stroke-dasharray: 2,2; }
+  .door-leaf { stroke: #222; stroke-width: 2.5; stroke-linecap: round; }
+  .gate-bars { stroke: #d94040; stroke-width: 3; stroke-dasharray: 5,3; }
+  .room-text { font-family: var(--mono); font-size: 12px; fill: #444; font-weight: 700; letter-spacing: 0.4px; }
+  .dim-text { font-family: var(--mono); font-size: 9px; fill: #999; }
+  .hallway-text { font-family: var(--mono); font-size: 10px; fill: #bbb; letter-spacing: 2px; }
+  .furniture { fill: none; stroke: #b5b5b5; stroke-width: 1; }
+  .hallway-fill { fill: #eef1ef; }
+
+  .device-node { position: absolute; transform: translate(-50%, -50%); z-index: 10; }
+  .light-node {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: #333; border: 2px solid #111;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; color: #666;
+    transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+  .light-node.active {
+    background: var(--on); border-color: #fff; color: #000;
+    box-shadow: 0 0 14px var(--on-glow), 0 0 26px var(--on-glow);
+  }
+  .tag {
+    position: absolute; transform: translate(-50%, -50%);
+    font-family: var(--mono); font-size: 9px; font-weight: 600;
+    padding: 3px 7px; background: rgba(15,20,16,0.92); color: #aaa;
+    border: 1px solid #333; border-radius: 4px; white-space: nowrap;
+    z-index: 10; transition: all 0.3s ease;
+  }
+  .tag.door.active { background: #0f2b1c; color: var(--on); border-color: var(--on); box-shadow: 0 0 10px rgba(0,255,136,0.3); }
+  .tag.gate.active { background: #3b1e10; color: var(--live); border-color: var(--live); box-shadow: 0 0 10px rgba(255,168,52,0.3); }
+  .tag.valve.active { background: #0f2330; color: var(--valve-on); border-color: var(--valve-on); box-shadow: 0 0 10px var(--valve-glow); }
+
+  .log-panel {
+    background: var(--panel); border: 1px solid var(--panel-border);
+    border-radius: 8px; padding: 16px; max-height: 680px; overflow-y: auto;
+  }
+  .log-panel h2 {
+    font-family: var(--mono); font-size: 11px; text-transform: uppercase;
+    letter-spacing: 1.5px; color: var(--text-dim); margin: 0 0 12px;
+  }
+  .log-entry { font-family: var(--mono); font-size: 11px; padding: 7px 0; border-bottom: 1px solid var(--panel-border); color: var(--text-dim); }
+  .log-entry .t { color: var(--text); }
+  .log-entry .src { color: var(--live); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>SMART HOUSE <span>// Architectural Floor Plan</span></h1>
+  <nav><a href="/web">🧪 open switch tester →</a></nav>
+  <div class="status-pill" id="connStatus">● live</div>
+</header>
+
+<main>
+  <div class="blueprint-card">
+    <div class="cad-container">
+      <svg class="cad-plan" viewBox="0 0 1000 700" xmlns="http://www.w3.org/2000/svg">
+
+        <!-- dimension lines -->
+        <g stroke="#999" stroke-width="0.75">
+          <line x1="60" y1="34" x2="940" y2="34" />
+          <line x1="60" y1="29" x2="60" y2="39" />
+          <line x1="940" y1="29" x2="940" y2="39" />
+          <line x1="34" y1="60" x2="34" y2="640" />
+          <line x1="29" y1="60" x2="39" y2="60" />
+          <line x1="29" y1="640" x2="39" y2="640" />
+        </g>
+        <text x="460" y="26" class="dim-text">21,200 mm</text>
+        <text x="16" y="350" class="dim-text" transform="rotate(-90 16 350)">14,000 mm</text>
+
+        <!-- exterior wall -->
+        <path d="M 60,60 L 940,60 L 940,640 L 60,640 Z M 76,76 L 76,624 L 924,624 L 924,76 Z"
+              class="wall" fill-rule="evenodd" />
+
+        <!-- hallway floor fill (open circulation spine) -->
+        <rect x="76" y="360" width="848" height="60" class="hallway-fill" />
+        <text x="460" y="394" class="hallway-text" text-anchor="middle">HALLWAY</text>
+
+        <!-- interior walls, top row (with door cutouts left as gaps) -->
+        <rect x="76"  y="360" width="84"  height="14" class="wall" />
+        <rect x="200" y="360" width="150" height="14" class="wall" />
+        <rect x="390" y="360" width="190" height="14" class="wall" />
+        <rect x="620" y="360" width="180" height="14" class="wall" />
+        <rect x="840" y="360" width="84"  height="14" class="wall" />
+
+        <!-- interior walls, bottom row (with door cutouts left as gaps) -->
+        <rect x="76"  y="406" width="174" height="14" class="wall" />
+        <rect x="290" y="406" width="290" height="14" class="wall" />
+        <rect x="620" y="406" width="180" height="14" class="wall" />
+        <rect x="840" y="406" width="84"  height="14" class="wall" />
+
+        <!-- vertical dividing walls, top row -->
+        <rect x="266" y="76" width="14" height="284" class="wall" />
+        <rect x="490" y="76" width="14" height="284" class="wall" />
+        <rect x="704" y="76" width="14" height="284" class="wall" />
+
+        <!-- vertical dividing walls, bottom row -->
+        <rect x="490" y="420" width="14" height="204" class="wall" />
+        <rect x="704" y="420" width="14" height="204" class="wall" />
+
+        <!-- windows on exterior wall -->
+        <rect x="120" y="60" width="90"  height="14" class="window" />
+        <rect x="340" y="60" width="100" height="14" class="window" />
+        <rect x="560" y="60" width="80"  height="14" class="window" />
+        <rect x="780" y="60" width="90"  height="14" class="window" />
+        <rect x="60" y="140" width="14" height="90"  class="window" />
+        <rect x="60" y="470" width="14" height="110" class="window" />
+        <rect x="926" y="120" width="14" height="80" class="window" />
+        <rect x="926" y="480" width="14" height="80" class="window" />
+
+        <!-- main gate on south exterior wall -->
+        <rect x="220" y="624" width="140" height="16" class="wall-cut" />
+        <line x1="220" y1="632" x2="360" y2="632" class="gate-bars" />
+
+        <!-- DOORS: top row, swinging down into hallway -->
+        <path d="M 200,374 A 40,40 0 0,1 160,414" class="door-arc" />
+        <line x1="160" y1="374" x2="160" y2="414" class="door-leaf" />
+        <path d="M 390,374 A 40,40 0 0,1 350,414" class="door-arc" />
+        <line x1="350" y1="374" x2="350" y2="414" class="door-leaf" />
+        <path d="M 620,374 A 40,40 0 0,1 580,414" class="door-arc" />
+        <line x1="580" y1="374" x2="580" y2="414" class="door-leaf" />
+        <path d="M 840,374 A 40,40 0 0,1 800,414" class="door-arc" />
+        <line x1="800" y1="374" x2="800" y2="414" class="door-leaf" />
+
+        <!-- DOORS: bottom row, swinging up into hallway -->
+        <path d="M 290,406 A 40,40 0 0,0 250,366" class="door-arc" />
+        <line x1="250" y1="406" x2="250" y2="366" class="door-leaf" />
+        <path d="M 620,406 A 40,40 0 0,0 580,366" class="door-arc" />
+        <line x1="580" y1="406" x2="580" y2="366" class="door-leaf" />
+        <path d="M 840,406 A 40,40 0 0,0 800,366" class="door-arc" />
+        <line x1="800" y1="406" x2="800" y2="366" class="door-leaf" />
+
+        <!-- furniture -->
+        <rect x="100" y="440" width="60" height="140" rx="4" class="furniture" />
+        <rect x="190" y="530" width="130" height="60" rx="4" class="furniture" />
+        <rect x="185" y="440" width="140" height="55" class="furniture" />
+
+        <rect x="300" y="90" width="180" height="36" class="furniture" />
+        <circle cx="330" cy="108" r="8" class="furniture" />
+        <circle cx="360" cy="108" r="8" class="furniture" />
+        <rect x="310" y="150" width="100" height="46" rx="2" class="furniture" />
+
+        <rect x="760" y="480" width="140" height="120" rx="4" class="furniture" />
+        <rect x="530" y="580" width="130" height="36" class="furniture" />
+        <rect x="100" y="100" width="120" height="90" rx="4" class="furniture" />
+        <rect x="530" y="90" width="120" height="80" rx="4" class="furniture" />
+        <rect x="750" y="100" width="120" height="90" rx="4" class="furniture" />
+
+        <!-- room labels -->
+        <text x="100" y="220" class="room-text">ROOM 1 · GUEST</text>
+        <text x="100" y="236" class="dim-text">4.8m × 5.7m</text>
+
+        <text x="310" y="220" class="room-text">KITCHEN &amp; DINING</text>
+        <text x="310" y="236" class="dim-text">5.3m × 5.7m</text>
+
+        <text x="530" y="220" class="room-text">ROOM 3</text>
+        <text x="530" y="236" class="dim-text">4.3m × 5.7m</text>
+
+        <text x="745" y="220" class="room-text">BATHROOM</text>
+
+        <text x="100" y="426" class="room-text">LIVING ROOM</text>
+        <text x="100" y="442" class="dim-text">8.3m × 4.1m</text>
+
+        <text x="530" y="440" class="room-text">ROOM 2 · STUDY</text>
+        <text x="530" y="456" class="dim-text">4.3m × 4.1m</text>
+
+        <text x="745" y="440" class="room-text">ROOM 4 · MASTER</text>
+        <text x="745" y="456" class="dim-text">4.3m × 4.1m</text>
+
+        <text x="230" y="618" class="room-text" fill="#d94040" text-anchor="middle">MAIN GATE</text>
+
+      </svg>
+
+      <!-- interactive device overlays -->
+
+      <!-- Living Room, 5 lights -->
+      <div class="device-node" style="top: 67.1%; left: 15%;" title="Living Room Top Left"><div class="light-node" id="icon-light_living_top_left">💡</div></div>
+      <div class="device-node" style="top: 67.1%; left: 40%;" title="Living Room Top Right"><div class="light-node" id="icon-light_living_top_right">💡</div></div>
+      <div class="device-node" style="top: 74.3%; left: 28%;" title="Living Room Center"><div class="light-node" id="icon-light_living_center">💡</div></div>
+      <div class="device-node" style="top: 81.4%; left: 15%;" title="Living Room Bottom Left"><div class="light-node" id="icon-light_living_bottom_left">💡</div></div>
+      <div class="device-node" style="top: 81.4%; left: 40%;" title="Living Room Bottom Right"><div class="light-node" id="icon-light_living_bottom_right">💡</div></div>
+
+      <!-- Kitchen light + valve -->
+      <div class="device-node" style="top: 21.4%; left: 38.5%;" title="Kitchen Light"><div class="light-node" id="icon-light_kitchen">💡</div></div>
+      <div class="tag valve" id="valve-valve_kitchen" style="top: 27%; left: 43%;">🚰 KITCHEN VALVE: <span id="state-valve_kitchen">CLOSE</span></div>
+
+      <!-- Room lights -->
+      <div class="device-node" style="top: 31.1%; left: 17.1%;" title="Room 1 Light"><div class="light-node" id="icon-light_room_1">💡</div></div>
+      <div class="device-node" style="top: 31.1%; left: 60.4%;" title="Room 3 Light"><div class="light-node" id="icon-light_room_3">💡</div></div>
+      <div class="device-node" style="top: 74.6%; left: 60.4%;" title="Room 2 Light"><div class="light-node" id="icon-light_room_2">💡</div></div>
+      <div class="device-node" style="top: 74.6%; left: 82.1%;" title="Room 4 Light"><div class="light-node" id="icon-light_room_4">💡</div></div>
+
+      <!-- Gate light -->
+      <div class="device-node" style="top: 85.7%; left: 29%;" title="Gate Light"><div class="light-node" id="icon-light_gate">💡</div></div>
+      <div class="tag gate" id="door-gate_main" style="top: 91.5%; left: 29%;">MAIN GATE: <span id="state-gate_main">CLOSE</span></div>
+
+      <!-- Door tags (in hallway, next to their door cutout) -->
+      <div class="tag door" id="door-door_room_1" style="top: 55.7%; left: 18%;">ROOM 1: <span id="state-door_room_1">CLOSE</span></div>
+      <div class="tag door" id="door-door_kitchen" style="top: 55.7%; left: 37%;">KITCHEN: <span id="state-door_kitchen">CLOSE</span></div>
+      <div class="tag door" id="door-door_room_3" style="top: 55.7%; left: 60%;">ROOM 3: <span id="state-door_room_3">CLOSE</span></div>
+      <div class="tag door" id="door-door_living_room" style="top: 57%; left: 28%;">LIVING RM: <span id="state-door_living_room">CLOSE</span></div>
+      <div class="tag door" id="door-door_room_2" style="top: 57%; left: 60%;">ROOM 2: <span id="state-door_room_2">CLOSE</span></div>
+      <div class="tag door" id="door-door_room_4" style="top: 57%; left: 82%;">MASTER: <span id="state-door_room_4">CLOSE</span></div>
+
+    </div>
+  </div>
+
+  <div class="log-panel">
+    <h2>Command Log</h2>
+    <div id="log"><div style="color: var(--text-dim); font-size: 11px;">No commands logged.</div></div>
+  </div>
+</main>
+
+<script>
+async function pollState() {
+  try {
+    const res = await fetch("/state");
+    const data = await res.json();
+    updateUI(data.devices, data.log);
+    document.getElementById("connStatus").textContent = "● live";
+    document.getElementById("connStatus").classList.remove("stale");
+  } catch (e) {
+    document.getElementById("connStatus").textContent = "● offline";
+    document.getElementById("connStatus").classList.add("stale");
+  }
+}
+
+function updateUI(devices, log) {
+  Object.entries(devices).forEach(([id, d]) => {
+    const isActive = d.state === "on" || d.state === "open";
+    if (d.type === "light") {
+      const icon = document.getElementById(`icon-${id}`);
+      if (icon) icon.classList.toggle("active", isActive);
+    } else if (d.type === "valve") {
+      const tag = document.getElementById(`valve-${id}`);
+      const stateTxt = document.getElementById(`state-${id}`);
+      if (tag && stateTxt) { stateTxt.textContent = d.state.toUpperCase(); tag.classList.toggle("active", isActive); }
+    } else {
+      const tag = document.getElementById(`door-${id}`);
+      const stateTxt = document.getElementById(`state-${id}`);
+      if (tag && stateTxt) { stateTxt.textContent = d.state.toUpperCase(); tag.classList.toggle("active", isActive); }
+    }
+  });
+
+  const logEl = document.getElementById("log");
+  logEl.innerHTML = log.length
+    ? log.map(e => `<div class="log-entry"><span class="t">${e.time}</span> — ${e.device} → <b>${e.action}</b> <span class="src">[${e.source}]</span></div>`).join("")
+    : '<div style="color: var(--text-dim); font-size: 11px;">No commands logged.</div>';
+}
+
+pollState();
+setInterval(pollState, 1000);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart House Simulator — Technical Pitch & Interactive 3D CAD</title>
+
+<!-- Fonts: Space Grotesk & JetBrains Mono -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg-dark: #070b11;
+    --bg-panel: #0d131f;
+    --border-color: #1a2635;
+    --text-primary: #f8fafc;
+    --text-muted: #8fa3bc;
+    --cyan-accent: #00d2ff;
+    --orange-accent: #ff9900;
+    --green-accent: #10b981;
+    --red-accent: #ef4444;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-sans: 'Space Grotesk', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body, html {
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    overflow: hidden;
+  }
+
+  /* Two-column layout */
+  .layout-container {
+    display: flex;
+    height: 100vh;
+    width: 100%;
+    position: relative;
+  }
+
+  /* Left Panel: Documentation & Pitch Deck Content */
+  .doc-panel {
+    width: 45%;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 40px 45px;
+    z-index: 5;
+    background: var(--bg-dark);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    transition: all 0.3s ease;
+  }
+
+  /* Right Panel: Sticky 3D WebGL Canvas */
+  .viewer-panel {
+    width: 55%;
+    position: relative;
+    height: 100vh;
+    background: #060910;
+    z-index: 2;
+    overflow: hidden;
+  }
+
+  #webgl-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  /* Custom Blueprint Grid overlay */
+  .viewer-panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: 
+      linear-gradient(to right, rgba(0, 210, 255, 0.02) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0, 210, 255, 0.02) 1px, transparent 1px);
+    background-size: 30px 30px;
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  /* Mode Switcher Toggle */
+  .mode-toggle-wrap {
+    display: flex;
+    background: #090e16;
+    border: 1px solid var(--border-color);
+    padding: 3px;
+    border-radius: 6px;
+    margin-bottom: 30px;
+    width: fit-content;
+  }
+
+  .mode-btn {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: transparent;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .mode-btn.active {
+    color: #000;
+    background: var(--cyan-accent);
+  }
+
+  /* Header specs styling */
+  .tech-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 15px;
+    margin-bottom: 25px;
+  }
+
+  .tech-header .logo {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 1px;
+    color: var(--cyan-accent);
+  }
+
+  .tech-header .status {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    background: rgba(16, 185, 129, 0.08);
+    color: var(--green-accent);
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid rgba(16, 185, 129, 0.18);
+  }
+
+  /* Document Mode (Scrollable) */
+  .mode-content {
+    display: none;
+  }
+  .mode-content.active {
+    display: block;
+  }
+
+  section {
+    padding: 40px 0;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  section:last-of-type {
+    border-bottom: none;
+  }
+
+  .section-tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--cyan-accent);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  h1 {
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 20px;
+    letter-spacing: -0.5px;
+  }
+
+  h2 {
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    letter-spacing: -0.3px;
+  }
+
+  p {
+    color: var(--text-muted);
+    font-size: 14.5px;
+    margin-bottom: 16px;
+  }
+
+  .lead {
+    font-size: 16.5px;
+    color: var(--text-primary);
+  }
+
+  /* Presentation Pitch Mode (Slide-by-Slide) */
+  .slide-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    flex-grow: 1;
+    min-height: 55vh;
+  }
+
+  .slide {
+    display: none;
+    animation: fadeIn 0.4s ease-in-out forwards;
+  }
+
+  .slide.active {
+    display: block;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .slide h2 {
+    font-size: 28px;
+    line-height: 1.2;
+    margin-bottom: 18px;
+    color: var(--text-primary);
+  }
+
+  .slide-bullet {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .slide-bullet .icon {
+    font-family: var(--font-mono);
+    color: var(--cyan-accent);
+    font-size: 13px;
+    margin-top: 4px;
+  }
+
+  .slide-bullet .text h4 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: var(--text-primary);
+  }
+
+  .slide-bullet .text p {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 0;
+  }
+
+  /* Slide Controls */
+  .slide-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--border-color);
+    padding-top: 20px;
+    margin-top: auto;
+  }
+
+  .dots-wrap {
+    display: flex;
+    gap: 6px;
+  }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--border-color);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .dot.active {
+    background: var(--cyan-accent);
+    box-shadow: 0 0 8px var(--cyan-accent);
+    transform: scale(1.2);
+  }
+
+  /* Buttons */
+  .button-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 20px 0;
+  }
+
+  .btn {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-decoration: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    font-weight: 600;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    background: transparent;
+    color: var(--text-primary);
+  }
+
+  .btn-primary {
+    background: var(--cyan-accent);
+    color: #000;
+    border-color: var(--cyan-accent);
+  }
+
+  .btn-primary:hover {
+    background: #00b4db;
+    box-shadow: 0 0 12px rgba(0, 210, 255, 0.4);
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--cyan-accent);
+    color: var(--cyan-accent);
+  }
+
+  .btn-orange {
+    border-color: var(--orange-accent);
+    color: var(--orange-accent);
+  }
+
+  .btn-orange:hover {
+    background: rgba(255, 153, 0, 0.1);
+  }
+
+  /* Spec grid */
+  .spec-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin: 20px 0;
+  }
+
+  .spec-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+
+  .spec-row .label { color: var(--text-muted); }
+  .spec-row .value { color: var(--cyan-accent); }
+
+  /* Code block */
+  .code-block {
+    background: #04070c;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin: 16px 0;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    overflow-x: auto;
+    color: #a5b4fc;
+  }
+
+  .code-block header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    color: var(--text-muted);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    padding-bottom: 6px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+
+  .keyword { color: #f43f5e; }
+  .string { color: #10b981; }
+  .number { color: #f59e0b; }
+  .comment { color: #475569; }
+
+  /* Live HUD telemetry */
+  .live-hud {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 16px;
+    margin: 20px 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+
+  .live-hud h4 {
+    font-family: var(--font-sans);
+    font-size: 12px;
+    margin-bottom: 10px;
+    color: var(--cyan-accent);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .live-hud .hud-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+
+  .live-hud .hud-bar-wrap {
+    height: 4px;
+    background: #04070c;
+    border: 1px solid var(--border-color);
+    border-radius: 2px;
+    overflow: hidden;
+    margin: 6px 0;
+  }
+
+  .live-hud .hud-bar {
+    height: 100%;
+    background: var(--cyan-accent);
+    width: 0%;
+    transition: width 0.3s;
+  }
+
+  /* Preset voice command panel */
+  .preset-commands-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    margin: 15px 0;
+  }
+
+  .preset-cmd-btn {
+    text-align: left;
+    padding: 10px 14px;
+    background: #090e17;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .preset-cmd-btn:hover {
+    border-color: var(--cyan-accent);
+    background: rgba(0, 210, 255, 0.05);
+    color: var(--cyan-accent);
+  }
+
+  /* Viewport overlays */
+  .viewport-overlay {
+    position: absolute;
+    bottom: 24px;
+    left: 24px;
+    z-index: 10;
+    background: rgba(13, 19, 31, 0.95);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 14px 16px;
+    width: 260px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    pointer-events: none;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  }
+
+  .viewport-overlay h5 {
+    color: var(--cyan-accent);
+    font-size: 11px;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+
+  .viewport-control-hint {
+    position: absolute;
+    top: 24px;
+    left: 24px;
+    z-index: 10;
+    background: rgba(9, 14, 23, 0.85);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    color: var(--text-muted);
+  }
+
+  /* Speech simulator bubble inside viewport */
+  .viewport-speech-bubble {
+    position: absolute;
+    top: 60px;
+    right: 24px;
+    z-index: 10;
+    background: rgba(255, 153, 0, 0.95);
+    color: #000;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 700;
+    max-width: 250px;
+    display: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    animation: bounceIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  @keyframes bounceIn {
+    from { opacity: 0; transform: scale(0.85); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  /* Navigation Header Links */
+  .nav-header-links {
+    display: flex;
+    gap: 8px;
+  }
+
+  .nav-header-links a {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    text-decoration: none;
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+    padding: 3px 8px;
+    border-radius: 4px;
+    transition: all 0.2s;
+  }
+
+  .nav-header-links a:hover {
+    color: var(--cyan-accent);
+    border-color: var(--cyan-accent);
+  }
+
+  /* Mobile Stack */
+  @media (max-width: 1024px) {
+    .layout-container {
+      flex-direction: column;
+    }
+    .doc-panel {
+      width: 100%;
+      height: auto;
+      overflow-y: visible;
+      padding: 30px 20px;
+    }
+    .viewer-panel {
+      width: 100%;
+      height: 40vh;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .viewport-overlay {
+      bottom: 12px;
+      left: 12px;
+      width: calc(100% - 24px);
+    }
+    .viewport-speech-bubble {
+      top: 12px;
+      right: 12px;
+    }
+    .viewport-control-hint {
+      display: none;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="layout-container">
+  
+  <!-- Left Panel: Pitch Deck & documentation -->
+  <div class="doc-panel" id="scroll-container">
+    
+    <header class="tech-header">
+      <div class="logo">SMART_HOUSE // BLUE_SPEC</div>
+      <div class="nav-header-links">
+        <a href="/dashboard">Blueprint</a>
+        <a href="/xray">X-Ray Tour</a>
+        <a href="/threed">3D Walk</a>
+        <a href="/web">Tester</a>
+      </div>
+    </header>
+
+    <!-- View Mode Switcher -->
+    <div class="mode-toggle-wrap">
+      <button class="mode-btn active" id="btn-mode-pitch" onclick="setMode('pitch')">PITCH DECK</button>
+      <button class="mode-btn" id="btn-mode-docs" onclick="setMode('docs')">TECHNICAL SPEC</button>
+    </div>
+
+    <!-- PITCH DECK MODE -->
+    <div class="mode-content active" id="content-pitch">
+      <div class="slide-container">
+        
+        <!-- Slide 0: The Hook -->
+        <div class="slide active" id="slide-0">
+          <span class="section-tag">[00 // THE_PROBLEM &amp; THE_SOLUTION]</span>
+          <h2>A Co-Design Bridge for Smart Hardware</h2>
+          <p class="lead">
+            Smart home apps and microcontrollers are usually developed in silos. App teams mock APIs, while hardware teams struggle with custom protocols. 
+          </p>
+          <div class="slide-bullet">
+            <div class="icon">➔</div>
+            <div class="text">
+              <h4>Unified Simulator Environment</h4>
+              <p>App and hardware teams build against the exact same commands. Swap virtual simulation for physical ESP8266 devices instantly.</p>
+            </div>
+          </div>
+          <div class="slide-bullet">
+            <div class="icon">➔</div>
+            <div class="text">
+              <h4>3D Virtual Mockups</h4>
+              <p>Test spatial commands and voice intent models inside the WebGL house plan before wiring any physical relays.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide 1: Device Mapping -->
+        <div class="slide" id="slide-1">
+          <span class="section-tag">[01 // SPATIAL_SCHEMA]</span>
+          <h2>The 19-Device Mapping</h2>
+          <p>
+            Every virtual light, door, safety valve, and socket is mapped to coordinates matching an architectural blueprint. 
+          </p>
+          <div class="spec-grid">
+            <div class="spec-row"><span class="label">Interior Lighting System</span><span class="value">10 addressed bulb nodes</span></div>
+            <div class="spec-row"><span class="label">Access Controls</span><span class="value">6 swing doors + 1 double gate</span></div>
+            <div class="spec-row"><span class="label">Appliance Sockets</span><span class="value">8 load-aware plug points</span></div>
+            <div class="spec-row"><span class="label">Piping Protection</span><span class="value">1 mechanical water valve</span></div>
+          </div>
+          <p style="font-size: 13px;">
+            *Look at the right viewport. Glowing yellow lines map the electrical conduits routing from the core breaker to individual rooms.
+          </p>
+        </div>
+
+        <!-- Slide 2: API Protocol -->
+        <div class="slide" id="slide-2">
+          <span class="section-tag">[02 // RUNTIME_API]</span>
+          <h2>Standard Command Protocol</h2>
+          <p>
+            Control devices with simple JSON structures. The API supports immediate switching, group triggers, and delayed scheduler timers out of the box.
+          </p>
+          <div class="code-block">
+            <header><span>POST /command</span><span>HTTP Payload</span></header>
+            <code>
+{<br>
+&nbsp;&nbsp;<span class="keyword">"device"</span>: <span class="string">"light_living_center"</span>,<br>
+&nbsp;&nbsp;<span class="keyword">"action"</span>: <span class="string">"on"</span>,<br>
+&nbsp;&nbsp;<span class="keyword">"delay_seconds"</span>: <span class="number">10</span><br>
+}
+            </code>
+          </div>
+          <button class="btn btn-primary" onclick="runDemoCommandSequence()">⚡ Trigger Corner Sequence</button>
+        </div>
+
+        <!-- Slide 3: Voice AI -->
+        <div class="slide" id="slide-3">
+          <span class="section-tag">[03 // ONLINE_AI_INTERPRET]</span>
+          <h2>Natural Language Compilation</h2>
+          <p>
+            No hardcoded commands. Route transcripts to LLMs through OpenRouter to extract multiple contextual commands and timing details.
+          </p>
+          
+          <div class="preset-commands-grid">
+            <button class="preset-cmd-btn" onclick="simSpeech('Everyone left the house')">💬 "Everyone left the house" (Auto-off)</button>
+            <button class="preset-cmd-btn" onclick="simSpeech('Going to bed, turn off study and lock gate')">💬 "Going to bed, turn off study &amp; lock gate"</button>
+            <button class="preset-cmd-btn" onclick="simSpeech('Open main gate and turn on outdoor light')">💬 "Open main gate &amp; turn on outdoor light"</button>
+          </div>
+          <p style="font-size: 12px; color: var(--orange-accent);">
+            *Click a preset script above to simulate how the voice model acts in real time.
+          </p>
+        </div>
+
+        <!-- Slide 4: prepaid engine -->
+        <div class="slide" id="slide-4">
+          <span class="section-tag">[04 // UTILITY_INTEGRATION]</span>
+          <h2>Prepaid Grid Simulation</h2>
+          <p>
+            Implements Rwanda's tiered utility tariff (effective Oct 2025). The background thread processes continuous appliance wattages and drains prepaid kWh.
+          </p>
+          <div class="spec-grid">
+            <div class="spec-row"><span class="label">Tier 1 (0-20 kWh consumed)</span><span class="value">89 RWF / kWh</span></div>
+            <div class="spec-row"><span class="label">Tier 2 (20-50 kWh consumed)</span><span class="value">310 RWF / kWh</span></div>
+            <div class="spec-row"><span class="label">Tier 3 (50+ kWh consumed)</span><span class="value">369 RWF / kWh</span></div>
+          </div>
+          <p style="font-size: 13px;">
+            <strong>Prepaid Cutoff:</strong> If prepaid kWh balance hits zero, an immediate hardware cutoff thread opens, shutting down all power-drawing virtual relays instantly.
+          </p>
+        </div>
+
+        <!-- Slide 5: Hardware specs -->
+        <div class="slide" id="slide-5">
+          <span class="section-tag">[05 // PHYSICAL_DEPLOYMENT]</span>
+          <h2>ESP8266 Relays Co-Design</h2>
+          <p>
+            The hardware team builds against the exact same routes. Flashing an ESP8266 with `bulb_relay.ino` links it to the dashboard.
+          </p>
+          <div class="code-block">
+            <header><span>esp8266/bulb_relay.ino</span><span>Arduino / C++</span></header>
+            <code>
+<span class="comment">// WiFi triggers match the simulator schema</span><br>
+StaticJsonDocument&lt;200&gt; doc;<br>
+deserializeJson(doc, server.arg(<span class="string">"plain"</span>));<br>
+<span class="keyword">const char</span>* device = doc[<span class="string">"device"</span>];<br>
+<span class="keyword">const char</span>* action = doc[<span class="string">"action"</span>];<br>
+<br>
+<span class="keyword">if</span> (String(device) == DEVICE_ID) {<br>
+&nbsp;&nbsp;digitalWrite(RELAY_PIN, String(action) == <span class="string">"on"</span> ? HIGH : LOW);<br>
+}
+            </code>
+          </div>
+          <div class="button-group">
+            <a href="/xray" class="btn btn-primary">X-Ray Tour</a>
+            <a href="/dashboard" class="btn btn-secondary">Launch Live Blueprint</a>
+            <a href="/threed" class="btn btn-secondary">Walk 3D House</a>
+          </div>
+        </div>
+
+        <!-- Slide Navigator Navigation Controls -->
+        <div class="slide-controls">
+          <button class="btn btn-secondary" id="btn-slide-prev" onclick="changeSlide(-1)">BACK</button>
+          <div class="dots-wrap" id="dots-container"></div>
+          <button class="btn btn-primary" id="btn-slide-next" onclick="changeSlide(1)">NEXT</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- DOCUMENTATION MODE (SCROLLABLE TEXT) -->
+    <div class="mode-content" id="content-docs">
+      
+      <section>
+        <span class="section-tag">[01 // CO_DESIGN_CONCEPT]</span>
+        <h1>Smart House Co-Design Platform</h1>
+        <p>
+          A unified simulator backend and 3D virtual environment enabling application developers and hardware engineers to work concurrently. The environment models physical parameters like appliance wattage draws, prepaid electricity grid tiers, and automated cutoffs.
+        </p>
+        <p>
+          Instead of deploying code directly to hardware, the app team builds intent models, voice pipelines, and floor plan dashboards using virtual devices. When the hardware team completes WiFi-relay modules, the simulator swaps nodes seamlessly.
+        </p>
+      </section>
+
+      <section>
+        <span class="section-tag">[02 // DEVICE_DIRECTORY]</span>
+        <h2>19-Device Mapping Registry</h2>
+        <p>
+          The house interior contains rooms labeled Room 1 (Guest), Room 2 (Study), Room 3, Room 4 (Master), Kitchen, Bathroom, Hallway, and an outdoor perimeter. The full physical schema contains:
+        </p>
+        <div class="spec-grid">
+          <div class="spec-row"><span class="label">light_living_top_left, ...</span><span class="value">5x Living Room Bulbs (10-15W)</span></div>
+          <div class="spec-row"><span class="label">light_room_1, light_kitchen, ...</span><span class="value">5x Bedroom &amp; Kitchen Bulbs (10W)</span></div>
+          <div class="spec-row"><span class="label">fridge, tv, microwave, water_heater</span><span class="value">4x Appliances (100W - 2000W)</span></div>
+          <div class="spec-row"><span class="label">socket_living_1..4, socket_room_1..4</span><span class="value">8x Mechanical Wall Sockets (150W)</span></div>
+          <div class="spec-row"><span class="label">door_room_1..4, door_kitchen, ...</span><span class="value">7x Automated Swing Doors (0W)</span></div>
+          <div class="spec-row"><span class="label">valve_kitchen</span><span class="value">1x Kitchen Water Valve (0W)</span></div>
+          <div class="spec-row"><span class="label">gate_main</span><span class="value">1x Double Entrance Gate (0W)</span></div>
+        </div>
+      </section>
+
+      <section>
+        <span class="section-tag">[03 // API_SPECIFICATIONS]</span>
+        <h2>REST Control Schema</h2>
+        <p>
+          Devices accept HTTP POST requests containing target identifier and state commands. Delays are queued natively on background threads.
+        </p>
+        <div class="code-block">
+          <header><span>Endpoint</span><span>POST /command</span></header>
+          <code>
+{<br>
+&nbsp;&nbsp;<span class="keyword">"device"</span>: <span class="string">"gate_main"</span>,<br>
+&nbsp;&nbsp;<span class="keyword">"action"</span>: <span class="string">"open"</span>,<br>
+&nbsp;&nbsp;<span class="keyword">"delay_seconds"</span>: <span class="number">15</span><br>
+}
+          </code>
+        </div>
+      </section>
+
+      <section>
+        <span class="section-tag">[04 // AI_PIPELINE]</span>
+        <h2>Speech Interpretation Workflow</h2>
+        <p>
+          The online pipeline targets transcripts via the <code>/interpret</code> endpoint. It fetches current states and feeds the context to large models to output a list of executed actions:
+        </p>
+        <div class="code-block">
+          <header><span>LLM Output Format</span><span>JSON</span></header>
+          <code>
+{<br>
+&nbsp;&nbsp;<span class="keyword">"commands"</span>: [<br>
+&nbsp;&nbsp;&nbsp;&nbsp;{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">"device"</span>: <span class="string">"light_room_1"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">"action"</span>: <span class="string">"off"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">"delay_seconds"</span>: <span class="number">0</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">"reasoning"</span>: <span class="string">"Turn off guest bulb immediately."</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;]<br>
+}
+          </code>
+        </div>
+      </section>
+
+      <section>
+        <span class="section-tag">[05 // UTILITY_SIMULATOR]</span>
+        <h2>EUCL Tariff Engine Details</h2>
+        <p>
+          Electricity balance is tracked in kWh. Continuous appliance draws are accumulated every second. Resets occur via <code>/energy/reset_month</code>.
+        </p>
+        <div class="live-hud">
+          <h4>Telemetries</h4>
+          <div class="hud-row"><span>Balance</span><span id="doc-balance">0.00 kWh</span></div>
+          <div class="hud-row"><span>Load Draw</span><span id="doc-watts">0 W</span></div>
+        </div>
+      </section>
+
+      <section>
+        <span class="section-tag">[06 // PHYSICAL_DESTRUCTION]</span>
+        <h2>Hardware Wiring Schematic</h2>
+        <p>
+          The Arduino sketch <code>esp8266/bulb_relay.ino</code> maps commands directly to GPIO registers on ESP8266 boards. Relays are wired to the common terminal block of outlets.
+        </p>
+      </section>
+
+    </div>
+
+    <footer style="padding-top: 30px; border-top: 1px solid var(--border-color); font-family: var(--font-mono); font-size: 9.5px; color: var(--text-muted); text-align: center; margin-top: auto;">
+      SMART HOUSE SIMULATOR // ARCHITECTURAL DRAFTING BLUEPRINT
+    </footer>
+
+  </div>
+
+  <!-- Sticky WebGL Viewer Column -->
+  <div class="viewer-panel">
+    <div class="viewport-control-hint">DRAG TO ROTATE // PITCH MODE TRANSITIONS CAMERA</div>
+    
+    <!-- Speech Simulated Overlay -->
+    <div class="viewport-speech-bubble" id="sim-bubble">
+      <div style="font-size: 8px; color: rgba(0,0,0,0.5); font-family: var(--font-mono); margin-bottom: 2px;">TRANSCRIPT RECEIVED:</div>
+      <div id="sim-speech-text">"Everyone left..."</div>
+      <div style="font-size: 8px; color: rgba(0,0,0,0.6); font-family: var(--font-mono); border-top: 1px solid rgba(0,0,0,0.1); margin-top: 6px; padding-top: 4px;" id="sim-speech-reasoning">
+        Auto-off active...
+      </div>
+    </div>
+
+    <canvas id="webgl-canvas"></canvas>
+
+    <!-- Overlay displaying dynamic blueprint metrics -->
+    <div class="viewport-overlay" id="viewport-hud">
+      <h5>CAD SCHEMATICS</h5>
+      <div style="margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
+        <span style="color: var(--text-muted)">TARGET FOCUS: </span><span id="cad-target" style="color: var(--cyan-accent)">OVERVIEW</span>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 4px;">
+        <span style="color: var(--text-muted)">WATTAGE:</span><span id="cad-watts" style="color: var(--text-primary)">0 W</span>
+        <span style="color: var(--text-muted)">COORDINATES:</span><span id="cad-coords" style="color: var(--text-primary)">[X: 0, Z: 0]</span>
+        <span style="color: var(--text-muted)">CAD STATE:</span><span id="cad-mode" style="color: var(--orange-accent)">PERSPECTIVE</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Three.js Setup -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// Scale factor mapping SVG units to world dimensions
+const S = 0.024;
+const WALL_H = 2.4;
+const svgToWorld = (x, y) => new THREE.Vector3(x * S, 0, y * S);
+
+const canvas = document.getElementById('webgl-canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x070b12);
+scene.fog = new THREE.Fog(0x070b12, 18, 55);
+
+const camera = new THREE.PerspectiveCamera(50, canvas.clientWidth / canvas.clientHeight, 0.1, 200);
+camera.position.set(13, 17, 20);
+
+const houseCenter = new THREE.Vector3((60 + 940) / 2 * S, 0, (60 + 570) / 2 * S);
+
+const orbit = new OrbitControls(camera, renderer.domElement);
+orbit.target.copy(houseCenter);
+orbit.enableDamping = true;
+orbit.dampingFactor = 0.05;
+orbit.maxPolarAngle = Math.PI * 0.47;
+orbit.minDistance = 3;
+orbit.maxDistance = 50;
+orbit.update();
+
+// Lights
+const hemiLight = new THREE.HemisphereLight(0x0ea5e9, 0x050810, 0.5);
+scene.add(hemiLight);
+
+const dirLight = new THREE.DirectionalLight(0x38bdf8, 0.7);
+dirLight.position.set(20, 40, 15);
+scene.add(dirLight);
+
+// ---------------------------------------------------------
+// Blueprint Materials
+// ---------------------------------------------------------
+const wallMat = new THREE.MeshStandardMaterial({ 
+  color: 0x0c1a29, 
+  roughness: 0.8,
+  transparent: true,
+  opacity: 0.45,
+  metalness: 0.4
+});
+
+const edgeMat = new THREE.LineBasicMaterial({ 
+  color: 0x00a2ff, 
+  linewidth: 1.5
+});
+
+const floorMat = new THREE.MeshStandardMaterial({ 
+  color: 0x060c16, 
+  roughness: 0.9,
+  metalness: 0.1
+});
+
+const ground = new THREE.GridHelper(100, 50, 0x141f2e, 0x0c1420);
+ground.position.y = -0.01;
+scene.add(ground);
+
+// ---------------------------------------------------------
+// Build CAD Plan programmatically
+// ---------------------------------------------------------
+const addFloorRect = (x1, x2, y1, y2, mat) => {
+  const w = (x2 - x1) * S, d = (y2 - y1) * S;
+  const geo = new THREE.PlaneGeometry(w, d);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.rotation.x = -Math.PI / 2;
+  const c = svgToWorld((x1 + x2) / 2, (y1 + y2) / 2);
+  mesh.position.set(c.x, 0.001, c.z);
+  scene.add(mesh);
+
+  const edgesGeo = new THREE.EdgesGeometry(geo);
+  const line = new THREE.LineSegments(edgesGeo, new THREE.LineBasicMaterial({ color: 0x12243d }));
+  line.rotation.x = -Math.PI / 2;
+  line.position.copy(mesh.position);
+  scene.add(line);
+};
+
+// Rooms
+addFloorRect(76, 266, 76, 300, floorMat);   // Room 1
+addFloorRect(280, 490, 76, 300, floorMat);  // Kitchen
+addFloorRect(504, 704, 76, 300, floorMat);  // Room 3
+addFloorRect(718, 924, 76, 300, floorMat);  // Bathroom
+addFloorRect(76, 490, 390, 554, floorMat);  // Living room
+addFloorRect(504, 704, 390, 554, floorMat); // Room 2
+addFloorRect(718, 924, 390, 554, floorMat); // Room 4
+addFloorRect(76, 924, 300, 390, floorMat);  // Hallway
+
+// Walls
+const addWall = (x1, x2, y1, y2, h = WALL_H) => {
+  const w = Math.abs(x2 - x1) * S, d = Math.abs(y2 - y1) * S;
+  const geo = new THREE.BoxGeometry(Math.max(w, 0.05), h, Math.max(d, 0.05));
+  const mesh = new THREE.Mesh(geo, wallMat);
+  const c = svgToWorld((x1 + x2) / 2, (y1 + y2) / 2);
+  mesh.position.set(c.x, h / 2, c.z);
+  scene.add(mesh);
+
+  const edgesGeo = new THREE.EdgesGeometry(geo);
+  const line = new THREE.LineSegments(edgesGeo, edgeMat);
+  line.position.copy(mesh.position);
+  scene.add(line);
+};
+
+const wallsSvg = [
+  [60, 940, 60, 76], [924, 940, 60, 570], [60, 400, 554, 570],
+  [460, 940, 554, 570], [60, 76, 60, 570],
+  [76, 160, 300, 314], [200, 350, 300, 314], [390, 580, 300, 314],
+  [620, 800, 300, 314], [840, 924, 300, 314],
+  [76, 260, 376, 390], [300, 490, 376, 390],
+  [620, 800, 376, 390], [840, 924, 376, 390],
+  [266, 280, 76, 300], [490, 504, 76, 300], [704, 718, 76, 300],
+  [490, 504, 390, 554], [704, 718, 390, 554],
+];
+wallsSvg.forEach(([x1, x2, y1, y2]) => addWall(x1, x2, y1, y2));
+
+// Gate perimeter
+const gateZ1 = (570 + 120) * S;
+const gateZ2 = gateZ1 + 0.3;
+const gateGapX1 = 360 * S, gateGapX2 = 640 * S;
+addWall(60, 360, 570+120, 570+124, 1.6);
+addWall(640, 940, 570+120, 570+124, 1.6);
+
+// ---------------------------------------------------------
+// Device Node Registry
+// ---------------------------------------------------------
+const deviceMeshes = [];
+const pointLights = {};
+const deviceStateCache = {};
+
+const createBulbNode = (id, x, y) => {
+  const pos = svgToWorld(x, y); pos.y = 2.2;
+  const geo = new THREE.SphereGeometry(0.08, 12, 12);
+  const mat = new THREE.MeshBasicMaterial({ color: 0x475569 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.copy(pos);
+  scene.add(mesh);
+
+  const edges = new THREE.EdgesGeometry(geo);
+  const outline = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x00d2ff }));
+  outline.position.copy(pos);
+  scene.add(outline);
+
+  const light = new THREE.PointLight(0xffa834, 0, 5, 2);
+  light.position.copy(pos);
+  scene.add(light);
+  pointLights[id] = light;
+
+  deviceMeshes.push({ id, mesh, type: 'light', mat, pos });
+  deviceStateCache[id] = 'off';
+};
+
+const createBoxNode = (id, x, y, size, colorHex) => {
+  const pos = svgToWorld(x, y); pos.y = size[1]/2;
+  const geo = new THREE.BoxGeometry(...size);
+  const mat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.5, transparent: true, opacity: 0.75 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.copy(pos);
+  scene.add(mesh);
+  const edges = new THREE.EdgesGeometry(geo);
+  const outline = new THREE.LineSegments(edges, edgeMat);
+  outline.position.copy(pos);
+  scene.add(outline);
+  deviceMeshes.push({ id, mesh, type: 'appliance', mat, pos });
+  deviceStateCache[id] = 'off';
+};
+
+// Populate
+createBulbNode('light_living_top_left', 150, 418.5);
+createBulbNode('light_living_top_right', 340, 418.5);
+createBulbNode('light_living_center', 280, 470.9);
+createBulbNode('light_living_bottom_left', 150, 522.8);
+createBulbNode('light_living_bottom_right', 340, 522.8);
+createBulbNode('light_kitchen', 385, 145.2);
+createBulbNode('light_room_1', 171, 185.4);
+createBulbNode('light_room_3', 604, 185.4);
+createBulbNode('light_room_2', 604, 470.9);
+createBulbNode('light_room_4', 821, 470.9);
+createBulbNode('light_gate', 280, 570+120);
+
+createBoxNode('fridge', 330, 109.8, [0.6, 1.6, 0.6], 0x1e3a8a);
+createBoxNode('tv', 220, 488, [1.0, 0.5, 0.08], 0x111827);
+createBoxNode('microwave', 330, 170.8, [0.45, 0.3, 0.35], 0x334155);
+createBoxNode('water_heater', 820, 109.8, [0.4, 0.8, 0.4], 0x64748b);
+
+// ---------------------------------------------------------
+// 3D Signal Pulses and Electrical Conduits (CAD Effect)
+// ---------------------------------------------------------
+const breakerPos = new THREE.Vector3(500 * S, 1.2, 300 * S); // central hallway breaker box
+const conduitLines = [];
+const pulses = []; // { curve, mesh, t, speed, onComplete }
+
+// Draw electrical conduit lines from breaker to every device
+deviceMeshes.forEach(dev => {
+  // Simple path: Breaker -> hallway corner -> device pos
+  const points = [];
+  points.push(breakerPos.clone());
+  
+  // Create a neat right-angle path on the ceiling/walls
+  const midPoint = new THREE.Vector3(dev.pos.x, 2.2, 300 * S);
+  points.push(midPoint);
+  points.push(new THREE.Vector3(dev.pos.x, 2.2, dev.pos.z));
+  points.push(dev.pos.clone());
+
+  const curve = new THREE.CatmullRomCurve3(points);
+  const pathGeo = new THREE.BufferGeometry().setFromPoints(curve.getPoints(20));
+  const lineMat = new THREE.LineBasicMaterial({ color: 0x00d2ff, transparent: true, opacity: 0.12 });
+  const conduit = new THREE.Line(pathGeo, lineMat);
+  scene.add(conduit);
+  conduitLines.push({ devId: dev.id, curve });
+});
+
+// Trigger a signal pulse animation along the conduit curve
+const triggerSignalPulse = (deviceId, colorHex = 0x00ffcc, onComplete = null) => {
+  const line = conduitLines.find(l => l.devId === deviceId);
+  if (!line) return;
+
+  const pulseGeo = new THREE.SphereGeometry(0.04, 8, 8);
+  const pulseMat = new THREE.MeshBasicMaterial({ color: colorHex });
+  const pulseMesh = new THREE.Mesh(pulseGeo, pulseMat);
+  scene.add(pulseMesh);
+
+  pulses.push({
+    curve: line.curve,
+    mesh: pulseMesh,
+    t: 0,
+    speed: 1.5, // completes in ~0.66s
+    onComplete
+  });
+};
+
+const updatePulses = (dt) => {
+  for (let i = pulses.length - 1; i >= 0; i--) {
+    const p = pulses[i];
+    p.t += dt * p.speed;
+    if (p.t >= 1) {
+      scene.remove(p.mesh);
+      p.mesh.geometry.dispose();
+      p.mesh.material.dispose();
+      if (p.onComplete) p.onComplete();
+      pulses.splice(i, 1);
+    } else {
+      const pos = p.curve.getPointAt(p.t);
+      p.mesh.position.copy(pos);
+    }
+  }
+};
+
+// ---------------------------------------------------------
+// Slide-by-slide Camera checkpoints
+// ---------------------------------------------------------
+const cameraCheckpoints = [
+  { // Slide 0: Hook / Overview
+    pos: new THREE.Vector3(14, 16, 20),
+    look: houseCenter.clone()
+  },
+  { // Slide 1: 19-Device plan
+    pos: new THREE.Vector3(houseCenter.x, 21, houseCenter.z + 0.1),
+    look: houseCenter.clone()
+  },
+  { // Slide 2: API Protocol (zoom to living room center)
+    pos: new THREE.Vector3(280 * S, 4.5, 470 * S + 6),
+    look: new THREE.Vector3(280 * S, 0.6, 470 * S)
+  },
+  { // Slide 3: Voice AI (Central circulation hallway)
+    pos: new THREE.Vector3(500 * S, 4.8, 345 * S + 6.5),
+    look: new THREE.Vector3(500 * S, 0.5, 345 * S)
+  },
+  { // Slide 4: prepaid engine (appliances - kitchen)
+    pos: new THREE.Vector3(385 * S - 4, 3.8, 145 * S + 3),
+    look: new THREE.Vector3(385 * S, 0.5, 145 * S)
+  },
+  { // Slide 5: Hardware relay (outdoor gate node)
+    pos: new THREE.Vector3(280 * S + 5, 2.5, (570+120) * S + 3),
+    look: new THREE.Vector3(280 * S, 0.8, (570+120) * S)
+  }
+];
+
+// ---------------------------------------------------------
+// Interactive Pitch slide state controllers
+// ---------------------------------------------------------
+window.currentMode = 'pitch';
+window.currentSlide = 0;
+
+const totalSlides = 6;
+
+window.setMode = (mode) => {
+  window.currentMode = mode;
+  document.getElementById('btn-mode-pitch').classList.toggle('active', mode === 'pitch');
+  document.getElementById('btn-mode-docs').classList.toggle('active', mode === 'docs');
+  
+  document.getElementById('content-pitch').classList.toggle('active', mode === 'pitch');
+  document.getElementById('content-docs').classList.toggle('active', mode === 'docs');
+
+  // Trigger correct camera positioning
+  if (mode === 'docs') {
+    // If documentation, bind camera position to scroll index
+    updateCameraFromScroll();
+  } else {
+    // If pitch slide deck, restore slide camera position
+    transitionToSlide(window.currentSlide);
+  }
+};
+
+window.changeSlide = (direction) => {
+  const nextSlide = window.currentSlide + direction;
+  if (nextSlide >= 0 && nextSlide < totalSlides) {
+    transitionToSlide(nextSlide);
+  }
+};
+
+window.goToSlideDirect = (slideIdx) => {
+  transitionToSlide(slideIdx);
+};
+
+const transitionToSlide = (idx) => {
+  window.currentSlide = idx;
+  
+  // Update slide UI active states
+  for (let i = 0; i < totalSlides; i++) {
+    document.getElementById(`slide-${i}`).classList.toggle('active', i === idx);
+  }
+
+  // Update dots UI
+  renderDots();
+
+  // Highlight/toggle button availability
+  document.getElementById('btn-slide-prev').style.opacity = idx === 0 ? '0.3' : '1';
+  document.getElementById('btn-slide-prev').style.pointerEvents = idx === 0 ? 'none' : 'auto';
+  document.getElementById('btn-slide-next').style.opacity = idx === totalSlides - 1 ? '0.3' : '1';
+  document.getElementById('btn-slide-next').style.pointerEvents = idx === totalSlides - 1 ? 'none' : 'auto';
+
+  // Specific slide visual triggers inside 3D environment
+  if (idx === 1) {
+    // Show dev registry: trigger signal pulses to all lights in quick sequence
+    deviceMeshes.forEach((dev, i) => {
+      setTimeout(() => {
+        triggerSignalPulse(dev.id, 0x00d2ff, () => {
+          // brief visual ping
+        });
+      }, i * 120);
+    });
+  }
+};
+
+const renderDots = () => {
+  const container = document.getElementById('dots-container');
+  container.innerHTML = '';
+  for (let i = 0; i < totalSlides; i++) {
+    const dot = document.createElement('div');
+    dot.className = `dot ${i === window.currentSlide ? 'active' : ''}`;
+    dot.onclick = () => goToSlideDirect(i);
+    container.appendChild(dot);
+  }
+};
+
+// ---------------------------------------------------------
+// Live preset animations & simulations
+// ---------------------------------------------------------
+
+// Preset sequence demo (Slide 2)
+window.runDemoCommandSequence = () => {
+  const sequence = [
+    'light_living_top_left',
+    'light_living_top_right',
+    'light_living_center',
+    'light_living_bottom_right',
+    'light_living_bottom_left'
+  ];
+
+  sequence.forEach((id, i) => {
+    setTimeout(() => {
+      triggerSignalPulse(id, 0xffaa00, () => {
+        toggleVisualLight(id, 'on');
+      });
+    }, i * 350);
+  });
+
+  // Automatically schedule turn-off sequence
+  setTimeout(() => {
+    sequence.forEach((id, i) => {
+      setTimeout(() => {
+        triggerSignalPulse(id, 0x00d2ff, () => {
+          toggleVisualLight(id, 'off');
+        });
+      }, i * 200);
+    });
+  }, 3000);
+};
+
+// Voice AI transcript simulation (Slide 3)
+window.simSpeech = (transcript) => {
+  const bubble = document.getElementById('sim-bubble');
+  const speechText = document.getElementById('sim-speech-text');
+  const speechReasoning = document.getElementById('sim-speech-reasoning');
+
+  speechText.textContent = `"${transcript}"`;
+  bubble.style.display = 'block';
+
+  let targets = [];
+  let action = 'off';
+
+  if (transcript.includes('Everyone left')) {
+    speechReasoning.textContent = "AI Reasoning: 'everyone left' implies turning off all continuous loads.";
+    targets = deviceMeshes.map(d => d.id);
+    action = 'off';
+  } else if (transcript.includes('Going to bed')) {
+    speechReasoning.textContent = "AI Reasoning: Turn off study light & lock gate main entrance.";
+    targets = ['light_room_2', 'light_gate'];
+    action = 'off';
+  } else if (transcript.includes('Open main gate')) {
+    speechReasoning.textContent = "AI Reasoning: Open gate_main & turn on light_gate.";
+    targets = ['light_gate'];
+    action = 'on';
+  }
+
+  // Trigger pulses from central cloud/breaker to target nodes
+  targets.forEach((id, i) => {
+    setTimeout(() => {
+      triggerSignalPulse(id, 0xff9900, () => {
+        toggleVisualLight(id, action);
+      });
+    }, i * 150);
+  });
+
+  // Hide bubble after 4 seconds
+  setTimeout(() => {
+    bubble.style.opacity = '0';
+    setTimeout(() => {
+      bubble.style.display = 'none';
+      bubble.style.opacity = '1';
+    }, 400);
+  }, 4000);
+};
+
+const toggleVisualLight = (id, state) => {
+  const isOn = state === 'on';
+  deviceStateCache[id] = state;
+  const dev = deviceMeshes.find(d => d.id === id);
+  if (dev) {
+    if (dev.type === 'light') {
+      pointLights[id].intensity = isOn ? 1.5 : 0;
+      dev.mat.color.setHex(isOn ? 0xffaa00 : 0x475569);
+    } else if (dev.type === 'appliance') {
+      dev.mat.emissive = new THREE.Color(isOn ? 0x00d2ff : 0x000000);
+      dev.mat.emissiveIntensity = isOn ? 0.6 : 0;
+    }
+  }
+};
+
+// ---------------------------------------------------------
+// Scroll-driven camera updates (Documentation Mode)
+// ---------------------------------------------------------
+const updateCameraFromScroll = () => {
+  const scrollTop = window.scrollY;
+  const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+  if (docHeight <= 0) return;
+
+  const scrollFraction = scrollTop / docHeight;
+  const numSegments = cameraCheckpoints.length - 1;
+  const scaledProgress = scrollFraction * numSegments;
+  const segmentIndex = Math.min(numSegments - 1, Math.floor(scaledProgress));
+  const segmentProgress = scaledProgress - segmentIndex;
+
+  const startCheck = cameraCheckpoints[segmentIndex];
+  const endCheck = cameraCheckpoints[segmentIndex + 1];
+
+  targetCamPos.lerpVectors(startCheck.pos, endCheck.pos, segmentProgress);
+  targetLookAt.lerpVectors(startCheck.look, endCheck.look, segmentProgress);
+};
+
+window.addEventListener('scroll', () => {
+  if (window.currentMode === 'docs') {
+    updateCameraFromScroll();
+  }
+});
+
+// ---------------------------------------------------------
+// Sync telemetry with real server (if active)
+// ---------------------------------------------------------
+const syncTelemetry = async () => {
+  try {
+    const resState = await fetch('/state');
+    const stateData = await resState.json();
+
+    const resEnergy = await fetch('/energy');
+    const energyData = await resEnergy.json();
+
+    // Update left-side HUD UI
+    document.querySelectorAll('.hud-bar').forEach(bar => {
+      const activePct = Math.min(100, (energyData.balance_kwh / 10) * 100);
+      bar.style.width = activePct + '%';
+    });
+    
+    document.getElementById('hud-watts').textContent = energyData.current_watts + ' W';
+    document.getElementById('hud-balance').textContent = energyData.balance_kwh.toFixed(4) + ' kWh';
+    
+    if (document.getElementById('doc-balance')) {
+      document.getElementById('doc-balance').textContent = energyData.balance_kwh.toFixed(4) + ' kWh';
+      document.getElementById('doc-watts').textContent = energyData.current_watts + ' W';
+    }
+
+    // Sync physical nodes with server states
+    deviceMeshes.forEach(dev => {
+      const live = stateData.devices[dev.id];
+      if (live) {
+        toggleVisualLight(dev.id, live.state);
+      }
+    });
+
+    const activeDeviceNames = Object.entries(stateData.devices)
+      .filter(([id, d]) => d.state === 'on')
+      .map(([id, d]) => d.label.split(' ')[0]);
+    
+    document.getElementById('cad-target').textContent = activeDeviceNames.length > 0 
+      ? activeDeviceNames.slice(0, 2).join(', ').toUpperCase() 
+      : 'OVERVIEW';
+    document.getElementById('cad-watts').textContent = energyData.current_watts + ' W';
+  } catch (err) {
+    // Mock local telemetry details if offline
+    let activeWatts = 0;
+    Object.entries(deviceStateCache).forEach(([id, state]) => {
+      if (state === 'on') activeWatts += (id.includes('living') ? 12 : 10);
+    });
+    document.getElementById('cad-watts').textContent = activeWatts + ' W';
+    document.getElementById('hud-watts').textContent = activeWatts + ' W';
+  }
+};
+
+setInterval(syncTelemetry, 1500);
+syncTelemetry();
+
+// ---------------------------------------------------------
+// Main Render Loop
+// ---------------------------------------------------------
+const targetCamPos = camera.position.clone();
+const targetLookAt = orbit.target.clone();
+
+const clock = new THREE.Clock();
+
+const animate = () => {
+  requestAnimationFrame(animate);
+
+  const dt = clock.getDelta();
+  updatePulses(dt);
+
+  // If in slide deck mode and not being dragged, lerp camera
+  if (window.currentMode === 'pitch') {
+    const check = cameraCheckpoints[window.currentSlide];
+    targetCamPos.copy(check.pos);
+    targetLookAt.copy(check.look);
+  }
+
+  // Smooth camera and orbit transition
+  if (orbit.state === -1) {
+    camera.position.lerp(targetCamPos, 0.08);
+    orbit.target.lerp(targetLookAt, 0.08);
+  }
+
+  // Slow overview rotate on first slide
+  if (window.currentMode === 'pitch' && window.currentSlide === 0 && orbit.state === -1) {
+    const elapsed = clock.getElapsedTime() * 0.06;
+    targetCamPos.x = 14 * Math.cos(elapsed) - 4 * Math.sin(elapsed);
+    targetCamPos.z = 14 * Math.sin(elapsed) + 20 * Math.cos(elapsed);
+  }
+
+  // Update CAD coords HUD
+  document.getElementById('cad-coords').textContent = `[X: ${camera.position.x.toFixed(1)}, Z: ${camera.position.z.toFixed(1)}]`;
+  document.getElementById('cad-mode').textContent = orbit.state === -1 ? 'PERSPECTIVE' : 'ORBIT';
+
+  orbit.update();
+  renderer.render(scene, camera);
+};
+
+// Window sizing
+window.addEventListener('resize', () => {
+  camera.aspect = canvas.clientWidth / canvas.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+});
+
+// Initialize pitch slider dots
+renderDots();
+transitionToSlide(0);
+
+animate();
+
+</script>
+</body>
+</html>

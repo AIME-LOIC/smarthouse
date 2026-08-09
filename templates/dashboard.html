@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart House — Architectural Floor Plan</title>
+<style>
+  :root {
+    --bg: #0b0f0c;
+    --panel: #121914;
+    --panel-border: #1e2b22;
+    --text: #e1e7e2;
+    --text-dim: #708276;
+    --live: #ffa834;
+    --on: #00ff88;
+    --on-glow: rgba(0, 255, 136, 0.45);
+    --valve-on: #38bdf8;
+    --valve-glow: rgba(56, 189, 248, 0.45);
+    --mono: 'JetBrains Mono', 'Courier New', monospace;
+    --sans: 'Segoe UI', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: radial-gradient(circle at 50% 0%, #142218 0%, var(--bg) 70%);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: 20px;
+  }
+  header {
+    max-width: 1300px;
+    margin: 0 auto 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--panel-border);
+    padding-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  h1 { font-family: var(--mono); font-size: 18px; letter-spacing: 0.5px; margin: 0; }
+  h1 span { color: var(--text-dim); font-weight: 400; }
+  .status-pill {
+    font-family: var(--mono); font-size: 11px; color: var(--on);
+    border: 1px solid #28543a; background: #0d2116;
+    padding: 4px 10px; border-radius: 4px;
+  }
+  .status-pill.stale { color: #e66840; border-color: #592e20; background: #21120d; }
+  nav a {
+    font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+    text-decoration: none; border: 1px solid var(--panel-border);
+    padding: 4px 10px; border-radius: 4px;
+  }
+  nav a:hover { color: var(--on); border-color: #28543a; }
+
+  main {
+    max-width: 1300px; margin: 0 auto;
+    display: grid; grid-template-columns: 3.2fr 1fr; gap: 20px;
+  }
+  @media (max-width: 1024px) { main { grid-template-columns: 1fr; } }
+
+  .blueprint-card {
+    background: #fdfdfd; border: 2px solid var(--panel-border);
+    border-radius: 8px; padding: 16px; position: relative;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.6);
+    display: flex; flex-direction: column; gap: 16px;
+  }
+
+  .zone-box {
+    position: relative; width: 100%;
+    background-color: #f7f9f8;
+    background-image:
+      linear-gradient(to right, rgba(0,0,0,0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0,0,0,0.04) 1px, transparent 1px);
+    background-size: 20px 20px;
+    border: 2px dashed #a0aab0; border-radius: 6px;
+    padding: 8px;
+  }
+  .zone-label {
+    position: absolute; top: 10px; left: 12px;
+    font-family: var(--mono); font-size: 10px; font-weight: 700;
+    color: #556066; letter-spacing: 1px; text-transform: uppercase;
+    background: rgba(255,255,255,0.85); padding: 2px 6px; border-radius: 3px;
+    z-index: 5; border: 1px solid #ccd2d6;
+  }
+
+  svg.cad-plan { width: 100%; height: auto; display: block; }
+
+  .wall { fill: #1a1a1a; }
+  .wall-cut { fill: #fdfdfd; }
+  .window { fill: #aee2f3; stroke: #1a1a1a; stroke-width: 1; }
+  .door-arc { fill: none; stroke: #888; stroke-width: 1; stroke-dasharray: 2,2; }
+  .door-leaf { stroke: #222; stroke-width: 2.5; stroke-linecap: round; }
+  .gate-bars { stroke: #d94040; stroke-width: 3; stroke-dasharray: 5,3; }
+  .room-text { font-family: var(--mono); font-size: 12px; fill: #444; font-weight: 700; letter-spacing: 0.4px; }
+  .dim-text { font-family: var(--mono); font-size: 9px; fill: #999; }
+  .hallway-text { font-family: var(--mono); font-size: 10px; fill: #bbb; letter-spacing: 2px; }
+  .hallway-sub { font-family: var(--mono); font-size: 9px; fill: #9fb8ac; letter-spacing: 1px; }
+  .furniture { fill: none; stroke: #b5b5b5; stroke-width: 1; }
+  .hallway-fill { fill: #eef1ef; }
+
+  .device-node { position: absolute; transform: translate(-50%, -50%); z-index: 10; }
+  .light-node {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: #333; border: 2px solid #111;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; color: #666;
+    transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+  .light-node.active {
+    background: var(--on); border-color: #fff; color: #000;
+    box-shadow: 0 0 14px var(--on-glow), 0 0 26px var(--on-glow);
+  }
+  .tag {
+    position: absolute; transform: translate(-50%, -50%);
+    font-family: var(--mono); font-size: 9px; font-weight: 600;
+    padding: 3px 7px; background: rgba(15,20,16,0.92); color: #aaa;
+    border: 1px solid #333; border-radius: 4px; white-space: nowrap;
+    z-index: 10; transition: all 0.3s ease;
+  }
+  .tag.door.active { background: #0f2b1c; color: var(--on); border-color: var(--on); box-shadow: 0 0 10px rgba(0,255,136,0.3); }
+  .tag.gate.active { background: #3b1e10; color: var(--live); border-color: var(--live); box-shadow: 0 0 10px rgba(255,168,52,0.3); }
+  .tag.valve.active { background: #0f2330; color: var(--valve-on); border-color: var(--valve-on); box-shadow: 0 0 10px var(--valve-glow); }
+
+  .log-panel {
+    background: var(--panel); border: 1px solid var(--panel-border);
+    border-radius: 8px; padding: 16px; max-height: 680px; overflow-y: auto;
+  }
+  .log-panel h2 {
+    font-family: var(--mono); font-size: 11px; text-transform: uppercase;
+    letter-spacing: 1.5px; color: var(--text-dim); margin: 0 0 12px;
+  }
+  .log-entry { font-family: var(--mono); font-size: 11px; padding: 7px 0; border-bottom: 1px solid var(--panel-border); color: var(--text-dim); }
+  .log-entry .t { color: var(--text); }
+  .log-entry .src { color: var(--live); }
+
+  /* Responsive breakpoints */
+  @media (max-width: 720px) {
+    body { padding: 12px; }
+    h1 { font-size: 15px; }
+    header { padding-bottom: 10px; }
+    main { gap: 14px; }
+    .blueprint-card { padding: 10px; gap: 12px; }
+    .zone-label { font-size: 9px; padding: 2px 5px; }
+    .tag { font-size: 8px; padding: 3px 6px; }
+    .light-node { width: 22px; height: 22px; font-size: 10px; }
+    .log-panel { padding: 12px; max-height: 320px; }
+  }
+  @media (max-width: 480px) {
+    nav a { font-size: 10px; padding: 3px 8px; }
+    h1 { font-size: 13px; }
+    .light-node { width: 20px; height: 20px; }
+    .tag { font-size: 7.5px; padding: 2px 5px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><a href="/" style="color: inherit; text-decoration: none;">SMART HOUSE</a> <span>// Architectural Floor Plan</span></h1>
+  <nav>
+    <a href="/">About Specs</a>
+    <a href="/xray">X-Ray Tour</a>
+    <a href="/threed">3D View</a>
+    <a href="/web">🧪 Switch Tester</a>
+  </nav>
+  <div class="status-pill" id="connStatus">● live</div>
+</header>
+
+<main>
+  <div class="blueprint-card">
+
+    <!-- BOX 1: MAIN HOUSE CONTAINER -->
+    <div class="zone-box" id="house-zone">
+      <div class="zone-label">Box 1: Main House Interior</div>
+
+      <!--
+        Scale: 1 SVG unit = 24 mm (derived from the drawing grid).
+        Exterior envelope: 880 u × 510 u  →  21,120 mm × 12,240 mm
+        Hallway clear walking width increased from 32 u (≈0.77 m, too narrow)
+        to 62 u (≈1.5 m). That extra 30 u was added to the overall building
+        height (not taken from any room), which is why total height grew
+        from 11,500 mm to 12,240 mm.
+      -->
+      <svg class="cad-plan" viewBox="0 0 1000 610" xmlns="http://www.w3.org/2000/svg">
+        <!-- dimension lines -->
+        <g stroke="#999" stroke-width="0.75">
+          <line x1="60" y1="34" x2="940" y2="34" />
+          <line x1="60" y1="29" x2="60" y2="39" />
+          <line x1="940" y1="29" x2="940" y2="39" />
+          <line x1="34" y1="60" x2="34" y2="570" />
+          <line x1="29" y1="60" x2="39" y2="60" />
+          <line x1="29" y1="570" x2="39" y2="570" />
+        </g>
+        <text x="460" y="26" class="dim-text">21,120 mm</text>
+        <text x="16" y="315" class="dim-text" transform="rotate(-90 16 315)">12,240 mm</text>
+
+        <!-- exterior wall with bottom doorway cutout for Living Room facing gate -->
+        <path d="M 60,60 L 940,60 L 940,570 L 460,570 L 460,554 L 924,554 L 924,76 L 76,76 L 76,554 L 400,554 L 400,570 L 60,570 Z"
+              class="wall" fill-rule="evenodd" />
+
+        <!-- hallway floor fill (300–390, 90u tall: 14 wall + 62 clear + 14 wall) -->
+        <rect x="76" y="300" width="848" height="90" class="hallway-fill" />
+        <text x="460" y="349" class="hallway-text" text-anchor="middle">HALLWAY / CIRCULATION</text>
+        <text x="460" y="364" class="hallway-sub" text-anchor="middle">≈ 1.5 m clear width</text>
+
+        <!-- interior walls, top row (top edge of hallway, unchanged) -->
+        <rect x="76"  y="300" width="84"  height="14" class="wall" />
+        <rect x="200" y="300" width="150" height="14" class="wall" />
+        <rect x="390" y="300" width="190" height="14" class="wall" />
+        <rect x="620" y="300" width="180" height="14" class="wall" />
+        <rect x="840" y="300" width="84"  height="14" class="wall" />
+
+        <!-- interior walls, bottom row (bottom edge of hallway, moved down to widen corridor) -->
+        <rect x="76"  y="376" width="414" height="14" class="wall" />
+        <rect x="620" y="376" width="180" height="14" class="wall" />
+        <rect x="840" y="376" width="84"  height="14" class="wall" />
+
+        <!-- vertical dividing walls, top row -->
+        <rect x="266" y="76" width="14" height="224" class="wall" />
+        <rect x="490" y="76" width="14" height="224" class="wall" />
+        <rect x="704" y="76" width="14" height="224" class="wall" />
+
+        <!-- vertical dividing walls, bottom row (shifted down with the wider hallway) -->
+        <rect x="490" y="390" width="14" height="164" class="wall" />
+        <rect x="704" y="390" width="14" height="164" class="wall" />
+
+        <!-- windows on exterior wall -->
+        <rect x="120" y="60" width="90"  height="14" class="window" />
+        <rect x="340" y="60" width="100" height="14" class="window" />
+        <rect x="560" y="60" width="80"  height="14" class="window" />
+        <rect x="780" y="60" width="90"  height="14" class="window" />
+        <rect x="60" y="140" width="14" height="90"  class="window" />
+        <rect x="60" y="440" width="14" height="90"  class="window" />
+        <rect x="926" y="120" width="14" height="80" class="window" />
+        <rect x="926" y="440" width="14" height="80" class="window" />
+
+        <!-- DOORS: top row -->
+        <path d="M 200,314 A 40,40 0 0,1 160,354" class="door-arc" />
+        <line x1="160" y1="314" x2="160" y2="354" class="door-leaf" />
+        <path d="M 390,314 A 40,40 0 0,1 350,354" class="door-arc" />
+        <line x1="350" y1="314" x2="350" y2="354" class="door-leaf" />
+        <path d="M 620,314 A 40,40 0 0,1 580,354" class="door-arc" />
+        <line x1="580" y1="314" x2="580" y2="354" class="door-leaf" />
+        <path d="M 840,314 A 40,40 0 0,1 800,354" class="door-arc" />
+        <line x1="800" y1="314" x2="800" y2="354" class="door-leaf" />
+
+        <!-- DOORS: bottom row bedrooms (moved down with the wider hallway) -->
+        <path d="M 620,376 A 40,40 0 0,0 580,336" class="door-arc" />
+        <line x1="580" y1="376" x2="580" y2="336" class="door-leaf" />
+        <path d="M 840,376 A 40,40 0 0,0 800,336" class="door-arc" />
+        <line x1="800" y1="376" x2="800" y2="336" class="door-leaf" />
+
+        <!-- LIVING ROOM EXTERIOR DOOR (Facing Gate on South Wall) -->
+        <path d="M 460,554 A 60,60 0 0,0 400,494" class="door-arc" />
+        <line x1="400" y1="554" x2="400" y2="494" class="door-leaf" />
+
+        <!-- furniture -->
+        <rect x="100" y="410" width="60" height="110" rx="4" class="furniture" />
+        <rect x="190" y="480" width="130" height="50" rx="4" class="furniture" />
+        <rect x="185" y="410" width="140" height="45" class="furniture" />
+
+        <rect x="300" y="90" width="180" height="36" class="furniture" />
+        <circle cx="330" cy="108" r="8" class="furniture" />
+        <circle cx="360" cy="108" r="8" class="furniture" />
+        <rect x="310" y="150" width="100" height="46" rx="2" class="furniture" />
+
+        <rect x="760" y="430" width="140" height="100" rx="4" class="furniture" />
+        <rect x="530" y="500" width="130" height="36" class="furniture" />
+        <rect x="100" y="100" width="120" height="90" rx="4" class="furniture" />
+        <rect x="530" y="90" width="120" height="80" rx="4" class="furniture" />
+        <rect x="750" y="100" width="120" height="90" rx="4" class="furniture" />
+
+        <!-- room labels (dimensions recalculated from actual wall geometry at 24 mm/unit) -->
+        <text x="100" y="210" class="room-text">ROOM 1 · GUEST</text>
+        <text x="100" y="226" class="dim-text">4.6 m × 5.4 m</text>
+
+        <text x="310" y="210" class="room-text">KITCHEN &amp; DINING</text>
+        <text x="310" y="226" class="dim-text">5.0 m × 5.4 m</text>
+
+        <text x="530" y="210" class="room-text">ROOM 3</text>
+        <text x="530" y="226" class="dim-text">4.8 m × 5.4 m</text>
+
+        <text x="745" y="210" class="room-text">BATHROOM</text>
+        <text x="745" y="226" class="dim-text">4.9 m × 5.4 m</text>
+
+        <text x="100" y="400" class="room-text">LIVING ROOM</text>
+        <text x="100" y="416" class="dim-text">9.9 m × 3.9 m</text>
+
+        <text x="530" y="410" class="room-text">ROOM 2 · STUDY</text>
+        <text x="530" y="426" class="dim-text">4.8 m × 3.9 m</text>
+
+        <text x="745" y="410" class="room-text">ROOM 4 · MASTER</text>
+        <text x="745" y="426" class="dim-text">4.9 m × 3.9 m</text>
+      </svg>
+
+      <!-- House Interactive Devices -->
+      <!-- Living Room (5 Lights) -->
+      <div class="device-node" style="top: 68.6%; left: 15%;" title="Living Room Top Left"><div class="light-node" id="icon-light_living_top_left">💡</div></div>
+      <div class="device-node" style="top: 68.6%; left: 34%;" title="Living Room Top Right"><div class="light-node" id="icon-light_living_top_right">💡</div></div>
+      <div class="device-node" style="top: 77.2%; left: 28%;" title="Living Room Center"><div class="light-node" id="icon-light_living_center">💡</div></div>
+      <div class="device-node" style="top: 85.7%; left: 15%;" title="Living Room Bottom Left"><div class="light-node" id="icon-light_living_bottom_left">💡</div></div>
+      <div class="device-node" style="top: 85.7%; left: 34%;" title="Living Room Bottom Right"><div class="light-node" id="icon-light_living_bottom_right">💡</div></div>
+
+      <!-- Kitchen Light + Valve -->
+      <div class="device-node" style="top: 23.8%; left: 38.5%;" title="Kitchen Light"><div class="light-node" id="icon-light_kitchen">💡</div></div>
+      <div class="tag valve" id="valve-valve_kitchen" style="top: 30.4%; left: 43%;">🚰 KITCHEN VALVE: <span id="state-valve_kitchen">CLOSE</span></div>
+
+      <!-- Bedroom Lights -->
+      <div class="device-node" style="top: 30.4%; left: 17.1%;" title="Room 1 Light"><div class="light-node" id="icon-light_room_1">💡</div></div>
+      <div class="device-node" style="top: 30.4%; left: 60.4%;" title="Room 3 Light"><div class="light-node" id="icon-light_room_3">💡</div></div>
+      <div class="device-node" style="top: 77.2%; left: 60.4%;" title="Room 2 Light"><div class="light-node" id="icon-light_room_2">💡</div></div>
+      <div class="device-node" style="top: 77.2%; left: 82.1%;" title="Room 4 Light"><div class="light-node" id="icon-light_room_4">💡</div></div>
+
+      <!-- Appliances -->
+      <div class="device-node" style="top: 80%; left: 22%;" title="TV (100W)"><div class="light-node" id="icon-tv">📺</div></div>
+      <div class="device-node" style="top: 18%; left: 33%;" title="Fridge (150W)"><div class="light-node" id="icon-fridge">🧊</div></div>
+      <div class="device-node" style="top: 28%; left: 33%;" title="Microwave (1200W)"><div class="light-node" id="icon-microwave">📡</div></div>
+
+      <!-- Door Tags -->
+      <div class="tag door" id="door-door_room_1" style="top: 51.3%; left: 18%;">ROOM 1: <span id="state-door_room_1">CLOSE</span></div>
+      <div class="tag door" id="door-door_kitchen" style="top: 51.3%; left: 37%;">KITCHEN: <span id="state-door_kitchen">CLOSE</span></div>
+      <div class="tag door" id="door-door_room_3" style="top: 51.3%; left: 60%;">ROOM 3: <span id="state-door_room_3">CLOSE</span></div>
+      <div class="tag door" id="door-door_living_room" style="top: 96%; left: 43%;">LIVING MAIN DOOR: <span id="state-door_living_room">CLOSE</span></div>
+      <div class="tag door" id="door-door_room_2" style="top: 61%; left: 60%;">ROOM 2: <span id="state-door_room_2">CLOSE</span></div>
+      <div class="tag door" id="door-door_room_4" style="top: 61%; left: 82%;">MASTER: <span id="state-door_room_4">CLOSE</span></div>
+    </div>
+
+    <!-- BOX 2: MAIN GATE & PERIMETER COMPOUND CONTAINER -->
+    <div class="zone-box" id="gate-zone">
+      <div class="zone-label">Box 2: Outdoor Main Gate Compound</div>
+
+      <svg class="cad-plan" viewBox="0 0 1000 160" xmlns="http://www.w3.org/2000/svg">
+        <!-- Perimeter Wall & Entrance (880u wide — matches the house width, same 24mm/unit scale) -->
+        <rect x="60" y="30" width="880" height="100" fill="none" stroke="#1a1a1a" stroke-width="12" rx="4" />
+
+        <!-- Gate Cutout -->
+        <rect x="360" y="24" width="280" height="20" class="wall-cut" />
+        <line x1="360" y1="30" x2="640" y2="30" class="gate-bars" />
+
+        <!-- Pathway Indicators -->
+        <line x1="360" y1="50" x2="360" y2="130" stroke="#ccc" stroke-dasharray="4,4" stroke-width="1.5" />
+        <line x1="640" y1="50" x2="640" y2="130" stroke="#ccc" stroke-dasharray="4,4" stroke-width="1.5" />
+
+        <text x="500" y="70" class="room-text" fill="#d94040" text-anchor="middle">MAIN ENTRANCE GATEWAY</text>
+        <text x="500" y="88" class="dim-text" text-anchor="middle">AUTOMATED ACCESS CONTROL</text>
+      </svg>
+
+      <!-- Gate Interactive Devices -->
+      <div class="device-node" style="top: 30%; left: 28%;" title="Gate Light"><div class="light-node" id="icon-light_gate">💡</div></div>
+      <div class="tag gate" id="door-gate_main" style="top: 30%; left: 50%;">MAIN GATE: <span id="state-gate_main">CLOSE</span></div>
+    </div>
+
+  </div>
+
+  <div class="log-panel">
+    <div style="margin-bottom:16px;">
+      <div style="font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-dim);margin-bottom:10px;">⚡ Electricity (RWF)</div>
+      <div id="cutoff-banner" style="display:none;font-family:var(--mono);font-size:10px;color:#ff4444;background:#1a0505;border:1px solid #5a1010;border-radius:4px;padding:6px 8px;margin-bottom:8px;">⚠ Balance exhausted — all devices cut off</div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text-dim);">Balance</span>
+        <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--on);" id="e-balance">— RWF</span>
+      </div>
+      <div style="background:#0a0f0b;border:1px solid var(--panel-border);border-radius:4px;height:8px;margin-bottom:8px;overflow:hidden;"><div id="e-bar" style="height:100%;width:0%;background:var(--on);border-radius:4px;transition:width 0.8s ease,background 0.4s;"></div></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text-dim);">Live draw</span>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--on);" id="e-watts">0 W</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text-dim);">Spent</span>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--text-dim);" id="e-spent">0.00 RWF</span>
+      </div>
+      <input type="text" id="topup-amount" placeholder="Top-up amount (RWF)" style="width:100%;padding:8px;background:#0a0f0b;border:1px solid var(--panel-border);color:var(--text);border-radius:4px;font-family:var(--mono);font-size:12px;margin-bottom:6px;box-sizing:border-box;">
+      <button onclick="doTopup()" style="width:100%;background:#1c3324;color:var(--on);border:1px solid #2c5c42;padding:8px;border-radius:4px;cursor:pointer;font-family:var(--mono);font-size:12px;">Top up</button>
+    </div>
+    <h2>Command Log</h2>
+    <div id="log"><div style="color: var(--text-dim); font-size: 11px;">No commands logged.</div></div>
+  </div>
+</main>
+
+<script>
+async function pollState() {
+  try {
+    const res = await fetch("/state");
+    const data = await res.json();
+    updateUI(data.devices, data.log);
+    document.getElementById("connStatus").textContent = "● live";
+    document.getElementById("connStatus").classList.remove("stale");
+  } catch (e) {
+    document.getElementById("connStatus").textContent = "● offline";
+    document.getElementById("connStatus").classList.add("stale");
+  }
+}
+
+function updateUI(devices, log) {
+  Object.entries(devices).forEach(([id, d]) => {
+    const isActive = d.state === "on" || d.state === "open";
+    if (d.type === "light" || d.type === "appliance") {
+      const icon = document.getElementById(`icon-${id}`);
+      if (icon) icon.classList.toggle("active", isActive);
+    } else if (d.type === "valve") {
+      const tag = document.getElementById(`valve-${id}`);
+      const stateTxt = document.getElementById(`state-${id}`);
+      if (tag && stateTxt) { stateTxt.textContent = d.state.toUpperCase(); tag.classList.toggle("active", isActive); }
+    } else {
+      const tag = document.getElementById(`door-${id}`);
+      const stateTxt = document.getElementById(`state-${id}`);
+      if (tag && stateTxt) { stateTxt.textContent = d.state.toUpperCase(); tag.classList.toggle("active", isActive); }
+    }
+  });
+
+  const logEl = document.getElementById("log");
+  logEl.innerHTML = log.length
+    ? log.map(e => `<div class="log-entry"><span class="t">${e.time}</span> — ${e.device} → <b>${e.action}</b> <span class="src">[${e.source}]</span></div>`).join("")
+    : '<div style="color: var(--text-dim); font-size: 11px;">No commands logged.</div>';
+}
+
+pollState();
+setInterval(pollState, 1000);
+
+let topupMax = 0;
+async function pollEnergy() {
+  try {
+    const res = await fetch("/energy");
+    const e = await res.json();
+    const bal = e.balance_rwf, spent = e.spent_rwf;
+    if (bal + spent > topupMax) topupMax = bal + spent;
+    const pct = topupMax > 0 ? Math.min(100, (bal / topupMax) * 100) : 0;
+    const color = pct < 10 ? "#ff4444" : pct < 25 ? "var(--live)" : "var(--on)";
+    document.getElementById("e-balance").textContent = bal.toFixed(2) + " RWF";
+    document.getElementById("e-balance").style.color = color;
+    const bar = document.getElementById("e-bar");
+    bar.style.width = pct + "%"; bar.style.background = color;
+    document.getElementById("e-watts").textContent = e.current_watts + " W";
+    document.getElementById("e-spent").textContent = spent.toFixed(2) + " RWF";
+    document.getElementById("cutoff-banner").style.display = (bal <= 0 && spent > 0) ? "block" : "none";
+  } catch (_) {}
+}
+async function doTopup() {
+  const amt = parseFloat(document.getElementById("topup-amount").value);
+  if (!amt || amt <= 0) return;
+  const res = await fetch("/energy/topup", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({amount_rwf: amt}) });
+  const json = await res.json();
+  if (json.ok) { topupMax = json.balance_rwf; document.getElementById("topup-amount").value = ""; pollEnergy(); }
+}
+document.getElementById("topup-amount").addEventListener("keydown", e => { if (e.key === "Enter") doTopup(); });
+pollEnergy();
+setInterval(pollEnergy, 2000);
+</script>
+
+</body>
+</html>

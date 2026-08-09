@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart House — Rwanda cohort project showcase</title>
+
+<!-- Fonts: Space Grotesk (sans-serif) & JetBrains Mono (monospaced) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg-dark: #040805;
+    --bg-panel: #0a120b;
+    --border-color: #16281a;
+    --text-primary: #ecfdf5;
+    --text-muted: #829a87;
+    --green-accent: #10b981;
+    --orange-accent: #f59e0b;
+    --blue-accent: #0ea5e9;
+    --red-accent: #ef4444;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-sans: 'Space Grotesk', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body, html {
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* Structural CAD grid lines overlay */
+  .grid-overlay {
+    position: fixed;
+    inset: 0;
+    background-image: 
+      linear-gradient(to right, rgba(16, 185, 129, 0.015) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(16, 185, 129, 0.015) 1px, transparent 1px);
+    background-size: 30px 30px;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .content-wrap {
+    position: relative;
+    z-index: 2;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* Header specs */
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 30px 0;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 60px;
+  }
+
+  .logo {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--green-accent);
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .logo::before {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green-accent);
+    box-shadow: 0 0 8px var(--green-accent);
+  }
+
+  .cohort-tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    background: rgba(16, 185, 129, 0.06);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    padding: 4px 10px;
+    border-radius: 4px;
+  }
+
+  /* Hero section */
+  .hero {
+    margin-bottom: 80px;
+    max-width: 800px;
+  }
+
+  .hero span.badge {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--green-accent);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 12px;
+    display: block;
+  }
+
+  .hero h1 {
+    font-size: 48px;
+    font-weight: 700;
+    line-height: 1.1;
+    margin-bottom: 24px;
+    letter-spacing: -1px;
+  }
+
+  .hero p.lead {
+    font-size: 18px;
+    color: var(--text-muted);
+    margin-bottom: 30px;
+  }
+
+  /* Grid Layout for Demos */
+  .demo-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    margin-bottom: 80px;
+  }
+
+  @media (max-width: 900px) {
+    .demo-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* Cards */
+  .demo-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .demo-card h3 {
+    font-size: 20px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .demo-card h3 span.tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--orange-accent);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(245, 158, 11, 0.05);
+  }
+
+  .demo-card p.description {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 24px;
+  }
+
+  /* 2D SVG Layout Container */
+  .layout-2d-wrap {
+    display: flex;
+    gap: 20px;
+    align-items: stretch;
+    min-height: 280px;
+  }
+
+  @media (max-width: 480px) {
+    .layout-2d-wrap {
+      flex-direction: column;
+    }
+  }
+
+  .floorplan-svg-container {
+    flex-grow: 1;
+    background: #040805;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .floorplan-svg {
+    width: 100%;
+    height: auto;
+    max-height: 250px;
+  }
+
+  /* 2D Meter Dashboard */
+  .meter-dashboard {
+    width: 120px;
+    border-left: 1px dashed var(--border-color);
+    padding-left: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+  }
+
+  @media (max-width: 480px) {
+    .meter-dashboard {
+      width: 100%;
+      border-left: none;
+      border-top: 1px dashed var(--border-color);
+      padding-left: 0;
+      padding-top: 16px;
+      gap: 16px;
+    }
+  }
+
+  .meter-metric {
+    margin-bottom: 12px;
+  }
+
+  .meter-metric .label {
+    color: var(--text-muted);
+    font-size: 9px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    display: block;
+  }
+
+  .meter-metric .val {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--green-accent);
+  }
+
+  .meter-bar-container {
+    height: 8px;
+    background: #050a06;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    margin-top: 6px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .meter-bar-fill {
+    height: 100%;
+    background: var(--green-accent);
+    width: 100%;
+    transition: width 0.1s linear, background-color 0.3s;
+  }
+
+  .cutoff-alert {
+    color: var(--red-accent);
+    font-weight: 700;
+    animation: flash 1s infinite;
+    display: none;
+  }
+
+  @keyframes flash {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  /* 3D WebGL Panel */
+  .canvas-container {
+    width: 100%;
+    height: 280px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: #030604;
+    overflow: hidden;
+    position: relative;
+  }
+
+  #canvas-3d {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  /* 3D Time Controls Overlay */
+  .time-control-hud {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: rgba(10, 18, 11, 0.9);
+    border: 1px solid var(--border-color);
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    pointer-events: auto;
+    z-index: 10;
+  }
+
+  .time-control-hud h5 {
+    color: var(--green-accent);
+    margin-bottom: 4px;
+    font-size: 10px;
+  }
+
+  .time-override-btns {
+    display: flex;
+    gap: 4px;
+    margin-top: 8px;
+  }
+
+  .time-btn {
+    background: #101e12;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    padding: 3px 6px;
+    font-size: 8px;
+    border-radius: 2px;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    transition: all 0.2s;
+  }
+
+  .time-btn.active, .time-btn:hover {
+    background: var(--green-accent);
+    color: #000;
+    border-color: var(--green-accent);
+  }
+
+  /* How It Works Section */
+  .how-it-works {
+    margin-bottom: 80px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 60px;
+  }
+
+  .section-title {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--green-accent);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 30px;
+    display: block;
+  }
+
+  .grid-features {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+  }
+
+  @media (max-width: 800px) {
+    .grid-features {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .feature-item h4 {
+    font-size: 18px;
+    margin-bottom: 12px;
+    color: var(--text-primary);
+  }
+
+  .feature-item p {
+    color: var(--text-muted);
+    font-size: 14.5px;
+  }
+
+  /* Tech Stack Grid */
+  .tech-stack {
+    margin-bottom: 80px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 60px;
+  }
+
+  .tech-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 20px;
+  }
+
+  .tech-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    padding: 20px;
+    border-radius: 6px;
+    text-align: center;
+  }
+
+  .tech-card h5 {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--green-accent);
+    margin-bottom: 6px;
+  }
+
+  .tech-card p {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  /* Footer */
+  footer {
+    border-top: 1px solid var(--border-color);
+    padding: 40px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .credits {
+    color: var(--green-accent);
+  }
+</style>
+</head>
+<body>
+
+<div class="grid-overlay"></div>
+
+<div class="content-wrap">
+  
+  <!-- Header section -->
+  <header>
+    <div class="logo">SMART_HOUSE</div>
+    <div class="cohort-tag">WITHIN TECH RWANDA // COHORT_02</div>
+  </header>
+
+  <!-- Hero Section -->
+  <main class="hero">
+    <span class="badge">// PROJECT_PRESENTATION</span>
+    <h1>Spatial Intelligence &amp; Resource Economics in a Unified Smart Home</h1>
+    <p class="lead">
+      A co-designed smart home automation system combining offline local voice engines, online contextual intent processing (via OpenRouter), real-time presence-sensor lighting tracking, and a physical prepaid grid electricity tariff simulation model.
+    </p>
+  </main>
+
+  <!-- Demos Section -->
+  <div class="demo-grid">
+    
+    <!-- 2D Animated Demo Card -->
+    <div class="demo-card">
+      <h3>2D Presence &amp; Meter Demo <span class="tag">Looping</span></h3>
+      <p class="description">
+        Demonstrates the presence-sensor automatic lighting control and prepaid electricity meter cutoff loop.
+      </p>
+
+      <div class="layout-2d-wrap">
+        
+        <!-- Floor plan SVG -->
+        <div class="floorplan-svg-container">
+          <svg class="floorplan-svg" viewBox="0 0 500 350" xmlns="http://www.w3.org/2000/svg">
+            <!-- Background grids/CAD guidelines -->
+            <rect width="500" height="350" fill="none" stroke="#10b981" stroke-width="0.5" stroke-opacity="0.05" />
+            
+            <!-- Room walls (CAD blueprint style) -->
+            <!-- Outer boundaries -->
+            <rect x="20" y="20" width="460" height="310" fill="none" stroke="#16281a" stroke-width="2" />
+            
+            <!-- Interior divides -->
+            <!-- Living Room / Kitchen vertical divide -->
+            <line x1="200" y1="20" x2="200" y2="330" stroke="#16281a" stroke-width="2" />
+            <line x1="200" y1="150" x2="200" y2="210" stroke="#040805" stroke-width="2.5" /> <!-- door gap -->
+            
+            <!-- Bedrooms vertical divide -->
+            <line x1="340" y1="20" x2="340" y2="330" stroke="#16281a" stroke-width="2" />
+            
+            <!-- Room labels and dimensions -->
+            <text x="110" y="45" font-family="Space Grotesk" font-size="11" fill="#ecfdf5" text-anchor="middle" font-weight="700">LIVING ROOM</text>
+            <text x="110" y="58" font-family="JetBrains Mono" font-size="7.5" fill="#829a87" text-anchor="middle">5.2m x 4.8m</text>
+
+            <text x="110" y="295" font-family="Space Grotesk" font-size="11" fill="#ecfdf5" text-anchor="middle" font-weight="700">KITCHEN</text>
+            
+            <text x="270" y="160" font-family="Space Grotesk" font-size="9" fill="#ecfdf5" text-anchor="middle" font-weight="700">HALLWAY</text>
+
+            <text x="410" y="45" font-family="Space Grotesk" font-size="11" fill="#ecfdf5" text-anchor="middle" font-weight="700">BEDROOM 1</text>
+            <text x="410" y="295" font-family="Space Grotesk" font-size="11" fill="#ecfdf5" text-anchor="middle" font-weight="700">BEDROOM 2</text>
+
+            <!-- Light Nodes -->
+            <!-- Living Room -->
+            <circle id="light-living" cx="110" cy="90" r="14" fill="#0a120b" stroke="#16281a" stroke-width="1.5" />
+            <text id="light-living-icon" x="110" y="94" font-size="12" text-anchor="middle" style="opacity: 0.2">💡</text>
+            
+            <!-- Kitchen -->
+            <circle id="light-kitchen" cx="110" cy="240" r="14" fill="#0a120b" stroke="#16281a" stroke-width="1.5" />
+            <text id="light-kitchen-icon" x="110" y="244" font-size="12" text-anchor="middle" style="opacity: 0.2">💡</text>
+
+            <!-- Hallway -->
+            <circle id="light-hallway" cx="270" cy="180" r="14" fill="#0a120b" stroke="#16281a" stroke-width="1.5" />
+            <text id="light-hallway-icon" x="270" y="184" font-size="12" text-anchor="middle" style="opacity: 0.2">💡</text>
+
+            <!-- Bedroom 1 -->
+            <circle id="light-bed1" cx="410" cy="90" r="14" fill="#0a120b" stroke="#16281a" stroke-width="1.5" />
+            <text id="light-bed1-icon" x="410" y="94" font-size="12" text-anchor="middle" style="opacity: 0.2">💡</text>
+
+            <!-- Bedroom 2 -->
+            <circle id="light-bed2" cx="410" cy="240" r="14" fill="#0a120b" stroke="#16281a" stroke-width="1.5" />
+            <text id="light-bed2-icon" x="410" y="244" font-size="12" text-anchor="middle" style="opacity: 0.2">💡</text>
+
+            <!-- Human avatar indicator -->
+            <g id="human-token" style="transition: transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);">
+              <circle cx="0" cy="0" r="8" fill="#10b981" />
+              <circle cx="0" cy="0" r="3.5" fill="#000" />
+            </g>
+          </svg>
+        </div>
+
+        <!-- Dashboard metrics sidebar -->
+        <div class="meter-dashboard">
+          <div class="meter-metric">
+            <span class="label">Current room</span>
+            <span id="meter-room" class="val">HALLWAY</span>
+          </div>
+
+          <div class="meter-metric">
+            <span class="label">System load</span>
+            <span id="meter-load" class="val">10 W</span>
+          </div>
+
+          <div class="meter-metric">
+            <span class="label">Prepaid Balance</span>
+            <span id="meter-balance-rwf" class="val">4,500 RWF</span>
+            <div style="font-size: 9px; color: var(--text-muted); margin-top: 2px;" id="meter-balance-kwh">14.51 kWh</div>
+            
+            <div class="meter-bar-container">
+              <div id="meter-bar-fill" class="meter-bar-fill"></div>
+            </div>
+            <div id="cutoff-indicator" class="cutoff-alert">CUTOFF INITIATED</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 3D Sun & Day/Night Cycle Demo Card -->
+    <div class="demo-card">
+      <h3>3D Day/Night Simulation <span class="tag">WebGL</span></h3>
+      <p class="description">
+        Holographic CAD wireframe viewport showing light angle and color temperatures synced to your system clock.
+      </p>
+
+      <div class="canvas-container">
+        
+        <!-- HUD overlay showing clock data -->
+        <div class="time-control-hud">
+          <h5>SOLAR GRID DETECT</h5>
+          <div id="hud-clock-time">System Time: --:--</div>
+          <div id="hud-solar-mode" style="color: var(--orange-accent); margin-top: 2px;">Solar Phase: Midday</div>
+          
+          <div class="time-override-btns">
+            <button class="time-btn active" id="btn-time-sync" onclick="overrideTime('sync')">SYNC CLOCK</button>
+            <button class="time-btn" id="btn-time-dawn" onclick="overrideTime('dawn')">DAWN</button>
+            <button class="time-btn" id="btn-time-day" onclick="overrideTime('day')">DAY</button>
+            <button class="time-btn" id="btn-time-dusk" onclick="overrideTime('dusk')">DUSK</button>
+            <button class="time-btn" id="btn-time-night" onclick="overrideTime('night')">NIGHT</button>
+          </div>
+        </div>
+
+        <canvas id="canvas-3d"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- How it Works section -->
+  <section class="how-it-works">
+    <span class="section-title">// SYSTEM_ARCHITECTURE</span>
+    
+    <div class="grid-features">
+      
+      <div class="feature-item">
+        <h4>Dual-Mode Voice Controller</h4>
+        <p>
+          To maintain security and reliability during internet outages, the system utilizes local on-device transcription models (TFLite/PocketSphinx) that command devices directly over the local network with zero cloud dependencies. When internet is active, transcripts route through OpenRouter backend models to parses indirect or multi-step intents—translating "I am leaving" into structured delayed shutdowns.
+        </p>
+      </div>
+
+      <div class="feature-item">
+        <h4>Rwanda Prepaid Electricity Simulation</h4>
+        <p>
+          Simulates RURA’s residential tiered tariff brackets (89 RWF/kWh for 0-20 kWh consumed, 310 RWF/kWh for 20-50 kWh, and 369 RWF/kWh for 50+ kWh). Continuous draws from appliances (fridge, tv, sockets) calculate total active wattages, draining the balance every second. The background grid listener cuts power immediately at zero balance to model actual Kigali prepaid EUCL meters.
+        </p>
+      </div>
+
+      <div class="feature-item">
+        <h4>Presence-Aware Automation</h4>
+        <p>
+          Simulates physical presence sensors. By tracking spatial movement matrices inside the floor plan, the home automatically gates power grids to unoccupied spaces—engaging bulbs sequentially and disconnecting drawing sockets to prevent phantom power waste.
+        </p>
+      </div>
+
+      <div class="feature-item">
+        <h4>Holographic Dual-View Visualization</h4>
+        <p>
+          Displays architectural layouts in two formats: a lightweight 2D CAD-style SVG layout for immediate status sweeps, and a hardware-rendered 3D WebGL walkthrough featuring dynamic daylight adjustments calculated directly against solar angles.
+        </p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Tech stack section -->
+  <section class="tech-stack">
+    <span class="section-title">// COMPONENT_STACK</span>
+    
+    <div class="tech-grid">
+      <div class="tech-card">
+        <h5>Flask (Python)</h5>
+        <p>Backend thread management and energy simulation loops</p>
+      </div>
+      <div class="tech-card">
+        <h5>Three.js</h5>
+        <p>WebGL programmatic geometry, day/night shader light mapping</p>
+      </div>
+      <div class="tech-card">
+        <h5>OpenRouter API</h5>
+        <p>Advanced natural language compiler parsing spatial intents</p>
+      </div>
+      <div class="tech-card">
+        <h5>RURA Tariffs</h5>
+        <p>October 2025 Rwandan tiered electricity brackets</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer specifications -->
+  <footer>
+    <div>SMART HOUSE CO-DESIGN SYSTEM — SPEC_V2</div>
+    <div class="credits">Within Tech Rwanda Cohort Team Project</div>
+  </footer>
+
+</div>
+
+<!-- Three.js from CDN -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ---------------------------------------------------------
+// 2D Presence & Prepaid Meter Animation Loop
+// ---------------------------------------------------------
+const waypoints = [
+  { name: 'HALLWAY', x: 270, y: 180, lightId: 'light-hallway', watts: 10 },
+  { name: 'LIVING ROOM', x: 110, y: 90, lightId: 'light-living', watts: 15 },
+  { name: 'KITCHEN', x: 110, y: 240, lightId: 'light-kitchen', watts: 110 }, // light + fridge load
+  { name: 'HALLWAY', x: 270, y: 180, lightId: 'light-hallway', watts: 10 },
+  { name: 'BEDROOM 1', x: 410, y: 90, lightId: 'light-bed1', watts: 12 },
+  { name: 'BEDROOM 2', x: 410, y: 240, lightId: 'light-bed2', watts: 12 },
+  { name: 'HALLWAY', x: 270, y: 180, lightId: 'light-hallway', watts: 10 }
+];
+
+let currentWaypointIndex = 0;
+let avatarX = waypoints[0].x;
+let avatarY = waypoints[0].y;
+const speed = 2.0; // human walking speed
+
+const token = document.getElementById('human-token');
+const meterRoom = document.getElementById('meter-room');
+const meterLoad = document.getElementById('meter-load');
+const meterBalRwf = document.getElementById('meter-balance-rwf');
+const meterBalKwh = document.getElementById('meter-balance-kwh');
+const meterBarFill = document.getElementById('meter-bar-fill');
+const cutoffIndicator = document.getElementById('cutoff-indicator');
+
+// Simulation balance variables
+let rwfBalance = 380;
+let kwhBalance = rwfBalance / 89.0; // Tier 1 pricing
+let maxKwh = 380 / 89.0;
+let isPowerCutoff = false;
+let cutoffTimer = 0;
+
+const update2DLoop = () => {
+  if (isPowerCutoff) {
+    cutoffTimer += 0.016;
+    if (cutoffTimer > 2.0) {
+      // Auto Top-Up trigger
+      isPowerCutoff = false;
+      rwfBalance = 380;
+      kwhBalance = rwfBalance / 89.0;
+      cutoffIndicator.style.display = 'none';
+      meterBalRwf.style.color = 'var(--green-accent)';
+      meterBarFill.style.backgroundColor = 'var(--green-accent)';
+    }
+    // Render static cutoff frames
+    meterBalRwf.textContent = '0 RWF';
+    meterBalKwh.textContent = '0.0000 kWh';
+    meterBarFill.style.width = '0%';
+    token.setAttribute('transform', `translate(${avatarX}, ${avatarY})`);
+    return;
+  }
+
+  const target = waypoints[currentWaypointIndex];
+  const dx = target.x - avatarX;
+  const dy = target.y - avatarY;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+
+  if (dist < 3) {
+    // Arrived at room target: trigger light activation states
+    waypoints.forEach(wp => {
+      const circle = document.getElementById(wp.lightId);
+      const icon = document.getElementById(wp.lightId + '-icon');
+      if (wp.lightId === target.lightId) {
+        circle.setAttribute('fill', 'rgba(16, 185, 129, 0.2)');
+        circle.setAttribute('stroke', 'var(--green-accent)');
+        icon.style.opacity = '1';
+      } else {
+        circle.setAttribute('fill', '#0a120b');
+        circle.setAttribute('stroke', '#16281a');
+        icon.style.opacity = '0.2';
+      }
+    });
+
+    meterRoom.textContent = target.name;
+    meterLoad.textContent = target.watts + ' W';
+
+    // Cycle index
+    currentWaypointIndex = (currentWaypointIndex + 1) % waypoints.length;
+  } else {
+    // Step toward room target
+    avatarX += (dx / dist) * speed;
+    avatarY += (dy / dist) * speed;
+  }
+
+  // Draw human avatar coordinate position
+  token.setAttribute('transform', `translate(${avatarX}, ${avatarY})`);
+
+  // Deplete prepaid meter based on active room wattage
+  const activeW = target.watts;
+  const whDrawPerFrame = (activeW * 0.016) / 3600.0; // wh consumed in 16ms
+  const kwhDraw = whDrawPerFrame / 1000.0;
+  
+  // Rapid depletion factor for visual demo
+  const speedUpFactor = 15000.0; 
+  kwhBalance -= kwhDraw * speedUpFactor;
+  rwfBalance = kwhBalance * 89.0;
+
+  if (kwhBalance <= 0) {
+    kwhBalance = 0;
+    rwfBalance = 0;
+    isPowerCutoff = true;
+    cutoffTimer = 0;
+    cutoffIndicator.style.display = 'block';
+    
+    // Shut down lights
+    waypoints.forEach(wp => {
+      document.getElementById(wp.lightId).setAttribute('fill', '#040805');
+      document.getElementById(wp.lightId + '-icon').style.opacity = '0.1';
+    });
+    meterLoad.textContent = '0 W';
+  }
+
+  // Render Telemetries
+  meterBalRwf.textContent = Math.round(rwfBalance) + ' RWF';
+  meterBalKwh.textContent = kwhBalance.toFixed(4) + ' kWh';
+  
+  const pct = Math.max(0, (kwhBalance / maxKwh) * 100);
+  meterBarFill.style.width = pct + '%';
+  if (pct < 20) {
+    meterBarFill.style.backgroundColor = 'var(--red-accent)';
+    meterBalRwf.style.color = 'var(--red-accent)';
+  } else {
+    meterBarFill.style.backgroundColor = 'var(--green-accent)';
+    meterBalRwf.style.color = 'var(--green-accent)';
+  }
+};
+
+
+// ---------------------------------------------------------
+// 3D WebGL Day/Night Cycle Simulation (Three.js)
+// ---------------------------------------------------------
+const container = document.getElementById('canvas-3d');
+const renderer = new THREE.WebGLRenderer({ canvas: container, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(container.clientWidth, container.clientHeight);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x050a06);
+
+const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+camera.position.set(10, 11, 13);
+
+const orbit = new OrbitControls(camera, renderer.domElement);
+orbit.enableDamping = true;
+orbit.dampingFactor = 0.05;
+orbit.maxPolarAngle = Math.PI * 0.48;
+orbit.minDistance = 6;
+orbit.maxDistance = 30;
+orbit.target.set(0, 1, 0);
+orbit.update();
+
+// Add grid floor matching CAD theme
+const grid3d = new THREE.GridHelper(40, 40, 0x16281a, 0x0a140d);
+grid3d.position.y = -0.01;
+scene.add(grid3d);
+
+// ---------------------------------------------------------
+// Build Low-Poly CAD House Structure
+// ---------------------------------------------------------
+const houseGroup = new THREE.Group();
+scene.add(houseGroup);
+
+const wallMat = new THREE.MeshStandardMaterial({ 
+  color: 0x0a140d,
+  roughness: 0.8,
+  transparent: true,
+  opacity: 0.5,
+  metalness: 0.2
+});
+
+const edgeMat3D = new THREE.LineBasicMaterial({ 
+  color: 0x10b981, 
+  linewidth: 1.5 
+});
+
+const addSolidBox = (w, h, d, pos, rotY = 0) => {
+  const geo = new THREE.BoxGeometry(w, h, d);
+  const mesh = new THREE.Mesh(geo, wallMat);
+  mesh.position.copy(pos);
+  mesh.rotation.y = rotY;
+  houseGroup.add(mesh);
+
+  const edges = new THREE.EdgesGeometry(geo);
+  const line = new THREE.LineSegments(edges, edgeMat3D);
+  line.position.copy(pos);
+  line.rotation.y = rotY;
+  houseGroup.add(line);
+};
+
+// House foundations/floors
+addSolidBox(6, 0.2, 5, new THREE.Vector3(0, 0.1, 0));
+
+// External Walls
+addSolidBox(0.15, 2.2, 5, new THREE.Vector3(-3, 1.2, 0));
+addSolidBox(0.15, 2.2, 5, new THREE.Vector3(3, 1.2, 0));
+addSolidBox(6, 2.2, 0.15, new THREE.Vector3(0, 1.2, -2.5));
+addSolidBox(6, 2.2, 0.15, new THREE.Vector3(0, 1.2, 2.5));
+
+// Roof (sloped geometry)
+const roofGeo = new THREE.ConeGeometry(4.8, 1.8, 4);
+const roofMat = new THREE.MeshStandardMaterial({ 
+  color: 0x0f1f14, 
+  roughness: 0.9, 
+  transparent: true, 
+  opacity: 0.4 
+});
+const roof = new THREE.Mesh(roofGeo, roofMat);
+roof.position.set(0, 3.1, 0);
+roof.rotation.y = Math.PI / 4;
+houseGroup.add(roof);
+
+const roofEdges = new THREE.EdgesGeometry(roofGeo);
+const roofLines = new THREE.LineSegments(roofEdges, edgeMat3D);
+roofLines.position.copy(roof.position);
+roofLines.rotation.y = roof.rotation.y;
+houseGroup.add(roofLines);
+
+// Room interior divides
+addSolidBox(0.1, 2.2, 2.4, new THREE.Vector3(-1, 1.2, 1.3));
+addSolidBox(3, 2.2, 0.1, new THREE.Vector3(1.5, 1.2, 0));
+
+// Glow Smart Bulbs inside 3D model
+const lightSpecs = [
+  { pos: new THREE.Vector3(-1.5, 1.8, 1.25), color: 0x10b981 }, // Living Room Green
+  { pos: new THREE.Vector3(-1.5, 1.8, -1.25), color: 0xf59e0b }, // Kitchen Amber
+  { pos: new THREE.Vector3(1.5, 1.8, 1.25), color: 0x0ea5e9 },   // Bedroom 1 Blue
+  { pos: new THREE.Vector3(1.5, 1.8, -1.25), color: 0xecfdf5 }   // Bedroom 2 White
+];
+
+const pointLights3D = [];
+
+lightSpecs.forEach(spec => {
+  const geo = new THREE.SphereGeometry(0.08, 8, 8);
+  const mat = new THREE.MeshBasicMaterial({ color: spec.color });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.copy(spec.pos);
+  scene.add(mesh);
+
+  const light = new THREE.PointLight(spec.color, 1.2, 4, 1.5);
+  light.position.copy(spec.pos);
+  scene.add(light);
+  pointLights3D.push(light);
+});
+
+// ---------------------------------------------------------
+// Day/Night Cycle Lighting Engine
+// ---------------------------------------------------------
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.05);
+scene.add(ambientLight);
+
+const sunLight = new THREE.DirectionalLight(0xffffff, 1.0);
+scene.add(sunLight);
+
+// Small sphere helper representing the sun location
+const sunHelperGeo = new THREE.SphereGeometry(0.2, 8, 8);
+const sunHelperMat = new THREE.MeshBasicMaterial({ color: 0xffdd55 });
+const sunHelper = new THREE.Mesh(sunHelperGeo, sunHelperMat);
+scene.add(sunHelper);
+
+let solarOverrideMode = 'sync'; // 'sync', 'dawn', 'day', 'dusk', 'night'
+
+const getSolarPhase = (hours) => {
+  if (hours >= 6 && hours < 8) return { label: 'DAWN/SUNRISE', color: '#ff7733', skyColor: 0x140e0b, sunColor: 0xff6622, sunIntensity: 0.8, ambientColor: 0x553322, ambientIntensity: 0.25 };
+  if (hours >= 8 && hours < 16) return { label: 'SOLAR MIDDAY', color: '#ffffff', skyColor: 0x040805, sunColor: 0xfffcf0, sunIntensity: 1.2, ambientColor: 0x10b981, ambientIntensity: 0.35 };
+  if (hours >= 16 && hours < 19) return { label: 'DUSK/SUNSET', color: '#ff5599', skyColor: 0x100b14, sunColor: 0xff4488, sunIntensity: 0.7, ambientColor: 0x442233, ambientIntensity: 0.20 };
+  // Night
+  return { label: 'SOLAR NIGHT', color: '#8fa3bc', skyColor: 0x020403, sunColor: 0xa5b4fc, sunIntensity: 0.15, ambientColor: 0x0ea5e9, ambientIntensity: 0.05 };
+};
+
+const updateSolarCycle = () => {
+  let decimalHours = 12.0;
+
+  if (solarOverrideMode === 'sync') {
+    const now = new Date();
+    decimalHours = now.getHours() + now.getMinutes() / 60.0;
+    
+    // Format overlay HUD clock
+    const hh = now.getHours().toString().padStart(2, '0');
+    const mm = now.getMinutes().toString().padStart(2, '0');
+    document.getElementById('hud-clock-time').textContent = `System Time: ${hh}:${mm}`;
+  } else {
+    document.getElementById('hud-clock-time').textContent = `System Override Active`;
+    if (solarOverrideMode === 'dawn') decimalHours = 6.5;
+    else if (solarOverrideMode === 'day') decimalHours = 12.0;
+    else if (solarOverrideMode === 'dusk') decimalHours = 17.5;
+    else if (solarOverrideMode === 'night') decimalHours = 22.0;
+  }
+
+  // Calculate Sun position along circular path
+  const angle = (decimalHours / 24.0) * Math.PI * 2 - Math.PI / 2;
+  const radius = 15;
+  const sunX = radius * Math.cos(angle);
+  const sunY = radius * Math.sin(angle);
+  const sunZ = 5 * Math.sin(angle); // slight wobble
+
+  sunLight.position.set(sunX, sunY, sunZ);
+  sunHelper.position.set(sunX, sunY, sunZ);
+
+  // Fetch solar phase colors
+  const phase = getSolarPhase(decimalHours);
+  document.getElementById('hud-solar-mode').textContent = `Phase: ${phase.label}`;
+
+  // Apply lighting details
+  scene.background.setHex(phase.skyColor);
+  scene.fog.color.setHex(phase.skyColor);
+  
+  sunLight.color.set(phase.sunColor);
+  sunLight.intensity = phase.sunIntensity;
+  
+  ambientLight.color.set(phase.ambientColor);
+  ambientLight.intensity = phase.ambientIntensity;
+};
+
+window.overrideTime = (mode) => {
+  solarOverrideMode = mode;
+  document.querySelectorAll('.time-btn').forEach(btn => btn.classList.remove('active'));
+  document.getElementById(`btn-time-${mode}`).classList.add('active');
+  updateSolarCycle();
+};
+
+// ---------------------------------------------------------
+// Unified Animation loop
+// ---------------------------------------------------------
+const clock = new THREE.Clock();
+
+const animate = () => {
+  requestAnimationFrame(animate);
+
+  // 1. Run 2D animation tick
+  update2DLoop();
+
+  // 2. Run 3D sun/day cycle calculations
+  updateSolarCycle();
+
+  // 3. Orbit camera rotation (product shot)
+  if (orbit.state === -1) {
+    const elapsed = clock.getElapsedTime() * 0.12;
+    camera.position.x = 13 * Math.cos(elapsed);
+    camera.position.z = 13 * Math.sin(elapsed);
+  }
+
+  orbit.update();
+  renderer.render(scene, camera);
+};
+
+// Handle scaling
+window.addEventListener('resize', () => {
+  camera.aspect = container.clientWidth / container.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(container.clientWidth, container.clientHeight);
+});
+
+// Start loop
+animate();
+
+</script>
+</body>
+</html>
