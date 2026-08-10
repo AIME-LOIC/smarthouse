@@ -26,11 +26,13 @@ Then open http://localhost:8000
 
 import os
 import json
+import sqlite3
 import threading
 import time
 import urllib.request
 import urllib.error
-from flask import Flask, jsonify, request, render_template
+from flask import Flask, jsonify, request, render_template, session
+from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timezone
 
 # load .env if present
@@ -44,6 +46,10 @@ if os.path.exists(_env_path):
                 os.environ.setdefault(_k.strip(), _v.strip())
 
 app = Flask(__name__)
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-change-me")
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "smarthouse_auth.db")
 
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
@@ -124,6 +130,40 @@ ENERGY = {
 DEVICE_WH_CONSUMED = {did: 0.0 for did in DEVICE_WATTS}
 
 EVENT_LOG = []
+
+
+def init_auth_db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE,
+            password_hash TEXT NOT NULL,
+            number_of_room INTEGER,
+            created_at TEXT NOT NULL
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+
+def get_db_connection():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def get_current_user():
+    user_id = session.get("user_id")
+    if not user_id:
+        return None
+    conn = get_db_connection()
+    try:
+        row = conn.execute("SELECT id, username, email, number_of_room, created_at FROM users WHERE id = ?", (user_id,)).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
 
 
 def log_event(device_id, action, source):
@@ -239,6 +279,19 @@ def _blocked_by_zero_balance(device_ids, action):
         if ENERGY["balance_kwh"] > 0:
             return False
         return any(_would_draw_power(d) for d in device_ids)
+
+
+@app.before_request
+def require_auth_for_sensitive_routes():
+    public_paths = {"/", "/dashboard", "/showcase", "/xray", "/web", "/threed", "/auth/register", "/auth/login", "/auth/logout", "/auth/me"}
+    if request.path.startswith("/static"):
+        return None
+    if request.path in public_paths:
+        return None
+    if request.path.startswith("/command") or request.path.startswith("/interpret") or request.path.startswith("/state") or request.path.startswith("/energy") or request.path.startswith("/devices"):
+        if not session.get("user_id"):
+            return jsonify({"ok": False, "error": "Authentication required"}), 401
+    return None
 
 
 @app.route("/")
@@ -501,6 +554,99 @@ def list_devices():
             for device_id, d in DEVICES.items()
         })
 
+
+@app.route("/auth/register", methods=["POST"])
+def register_user():
+    data = request.get_json(silent=True) or {}
+    username = (data.get("username") or "").strip()
+    password = data.get("password") or ""
+    email = (data.get("email") or "").strip().lower() or None
+    number_of_room = data.get("number_of_room")
+
+    if not username or not password:
+        return jsonify({"ok": False, "error": "username and password are required"}), 400
+    if len(password) < 6:
+        return jsonify({"ok": False, "error": "password must be at least 6 characters"}), 400
+
+    try:
+        if number_of_room is not None:
+            number_of_room = int(number_of_room)
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "number_of_room must be an integer"}), 400
+
+    password_hash = generate_password_hash(password)
+    conn = get_db_connection()
+    try:
+        cursor = conn.execute(
+            "INSERT INTO users (username, email, password_hash, number_of_room, created_at) VALUES (?, ?, ?, ?, ?)",
+            (username, email, password_hash, number_of_room, datetime.now(timezone.utc).isoformat()),
+        )
+        conn.commit()
+        user_id = cursor.lastrowid
+        session["user_id"] = user_id
+        return jsonify({
+            "ok": True,
+            "user": {
+                "id": user_id,
+                "username": username,
+                "email": email,
+                "number_of_room": number_of_room,
+            },
+        })
+    except sqlite3.IntegrityError as exc:
+        conn.rollback()
+        if "UNIQUE constraint failed: users.username" in str(exc):
+            return jsonify({"ok": False, "error": "username already exists"}), 409
+        if "UNIQUE constraint failed: users.email" in str(exc):
+            return jsonify({"ok": False, "error": "email already exists"}), 409
+        return jsonify({"ok": False, "error": "user could not be created"}), 400
+    finally:
+        conn.close()
+
+
+@app.route("/auth/login", methods=["POST"])
+def login_user():
+    data = request.get_json(silent=True) or {}
+    username = (data.get("username") or "").strip()
+    password = data.get("password") or ""
+
+    if not username or not password:
+        return jsonify({"ok": False, "error": "username and password are required"}), 400
+
+    conn = get_db_connection()
+    try:
+        row = conn.execute("SELECT id, username, email, password_hash, number_of_room FROM users WHERE username = ?", (username,)).fetchone()
+        if not row or not check_password_hash(row["password_hash"], password):
+            return jsonify({"ok": False, "error": "invalid username or password"}), 401
+        session["user_id"] = row["id"]
+        return jsonify({
+            "ok": True,
+            "user": {
+                "id": row["id"],
+                "username": row["username"],
+                "email": row["email"],
+                "number_of_room": row["number_of_room"],
+            },
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/auth/logout", methods=["POST"])
+def logout_user():
+    session.pop("user_id", None)
+    return jsonify({"ok": True})
+
+
+@app.route("/auth/me", methods=["GET"])
+def auth_me():
+    user = get_current_user()
+    if not user:
+        return jsonify({"ok": False, "authenticated": False}), 401
+    return jsonify({"ok": True, "authenticated": True, "user": user})
+
+
+init_auth_db()
 
 # The background drain thread must only ever exist once per running
 # process. Werkzeug's auto-reloader (the default when debug=True) forks a
