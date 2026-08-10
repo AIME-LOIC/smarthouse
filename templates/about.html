@@ -1,1472 +1,631 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart House Simulator — Technical Pitch & Interactive 3D CAD</title>
-
-<!-- Fonts: Space Grotesk & JetBrains Mono -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>FRIDAY - AI Home Assistant</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <style>
-  :root {
-    --bg-dark: #070b11;
-    --bg-panel: #0d131f;
-    --border-color: #1a2635;
-    --text-primary: #f8fafc;
-    --text-muted: #8fa3bc;
-    --cyan-accent: #00d2ff;
-    --orange-accent: #ff9900;
-    --green-accent: #10b981;
-    --red-accent: #ef4444;
-    --font-mono: 'JetBrains Mono', monospace;
-    --font-sans: 'Space Grotesk', sans-serif;
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body, html {
-    background: var(--bg-dark);
-    color: var(--text-primary);
-    font-family: var(--font-sans);
-    line-height: 1.6;
-    overflow: hidden;
-  }
-
-  /* Two-column layout */
-  .layout-container {
-    display: flex;
-    height: 100vh;
-    width: 100%;
-    position: relative;
-  }
-
-  /* Left Panel: Documentation & Pitch Deck Content */
-  .doc-panel {
-    width: 45%;
-    height: 100vh;
-    overflow-y: auto;
-    padding: 40px 45px;
-    z-index: 5;
-    background: var(--bg-dark);
-    border-right: 1px solid var(--border-color);
-    display: flex;
-    flex-direction: column;
-    position: relative;
-    transition: all 0.3s ease;
-  }
-
-  /* Right Panel: Sticky 3D WebGL Canvas */
-  .viewer-panel {
-    width: 55%;
-    position: relative;
-    height: 100vh;
-    background: #060910;
-    z-index: 2;
-    overflow: hidden;
-  }
-
-  #webgl-canvas {
-    width: 100%;
-    height: 100%;
-    display: block;
-  }
-
-  /* Custom Blueprint Grid overlay */
-  .viewer-panel::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image: 
-      linear-gradient(to right, rgba(0, 210, 255, 0.02) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(0, 210, 255, 0.02) 1px, transparent 1px);
-    background-size: 30px 30px;
-    pointer-events: none;
-    z-index: 3;
-  }
-
-  /* Mode Switcher Toggle */
-  .mode-toggle-wrap {
-    display: flex;
-    background: #090e16;
-    border: 1px solid var(--border-color);
-    padding: 3px;
-    border-radius: 6px;
-    margin-bottom: 30px;
-    width: fit-content;
-  }
-
-  .mode-btn {
-    font-family: var(--font-mono);
-    font-size: 10.5px;
-    font-weight: 600;
-    color: var(--text-muted);
-    background: transparent;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .mode-btn.active {
-    color: #000;
-    background: var(--cyan-accent);
-  }
-
-  /* Header specs styling */
-  .tech-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 15px;
-    margin-bottom: 25px;
-  }
-
-  .tech-header .logo {
-    font-family: var(--font-mono);
-    font-weight: 700;
-    font-size: 13px;
-    letter-spacing: 1px;
-    color: var(--cyan-accent);
-  }
-
-  .tech-header .status {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    background: rgba(16, 185, 129, 0.08);
-    color: var(--green-accent);
-    padding: 3px 8px;
-    border-radius: 4px;
-    border: 1px solid rgba(16, 185, 129, 0.18);
-  }
-
-  /* Document Mode (Scrollable) */
-  .mode-content {
-    display: none;
-  }
-  .mode-content.active {
-    display: block;
-  }
-
-  section {
-    padding: 40px 0;
-    border-bottom: 1px solid var(--border-color);
-  }
-
-  section:last-of-type {
-    border-bottom: none;
-  }
-
-  .section-tag {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--cyan-accent);
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    margin-bottom: 8px;
-    display: block;
-  }
-
-  h1 {
-    font-size: 32px;
-    font-weight: 700;
-    line-height: 1.2;
-    margin-bottom: 20px;
-    letter-spacing: -0.5px;
-  }
-
-  h2 {
-    font-size: 22px;
-    font-weight: 600;
-    margin-bottom: 16px;
-    letter-spacing: -0.3px;
-  }
-
-  p {
-    color: var(--text-muted);
-    font-size: 14.5px;
-    margin-bottom: 16px;
-  }
-
-  .lead {
-    font-size: 16.5px;
-    color: var(--text-primary);
-  }
-
-  /* Presentation Pitch Mode (Slide-by-Slide) */
-  .slide-container {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    flex-grow: 1;
-    min-height: 55vh;
-  }
-
-  .slide {
-    display: none;
-    animation: fadeIn 0.4s ease-in-out forwards;
-  }
-
-  .slide.active {
-    display: block;
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .slide h2 {
-    font-size: 28px;
-    line-height: 1.2;
-    margin-bottom: 18px;
-    color: var(--text-primary);
-  }
-
-  .slide-bullet {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-
-  .slide-bullet .icon {
-    font-family: var(--font-mono);
-    color: var(--cyan-accent);
-    font-size: 13px;
-    margin-top: 4px;
-  }
-
-  .slide-bullet .text h4 {
-    font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 4px;
-    color: var(--text-primary);
-  }
-
-  .slide-bullet .text p {
-    font-size: 13px;
-    color: var(--text-muted);
-    margin-bottom: 0;
-  }
-
-  /* Slide Controls */
-  .slide-controls {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-top: 1px solid var(--border-color);
-    padding-top: 20px;
-    margin-top: auto;
-  }
-
-  .dots-wrap {
-    display: flex;
-    gap: 6px;
-  }
-
-  .dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--border-color);
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .dot.active {
-    background: var(--cyan-accent);
-    box-shadow: 0 0 8px var(--cyan-accent);
-    transform: scale(1.2);
-  }
-
-  /* Buttons */
-  .button-group {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin: 20px 0;
-  }
-
-  .btn {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    text-decoration: none;
-    padding: 10px 20px;
-    border-radius: 4px;
-    font-weight: 600;
-    transition: all 0.2s;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid var(--border-color);
-    cursor: pointer;
-    background: transparent;
-    color: var(--text-primary);
-  }
-
-  .btn-primary {
-    background: var(--cyan-accent);
-    color: #000;
-    border-color: var(--cyan-accent);
-  }
-
-  .btn-primary:hover {
-    background: #00b4db;
-    box-shadow: 0 0 12px rgba(0, 210, 255, 0.4);
-  }
-
-  .btn-secondary:hover {
-    border-color: var(--cyan-accent);
-    color: var(--cyan-accent);
-  }
-
-  .btn-orange {
-    border-color: var(--orange-accent);
-    color: var(--orange-accent);
-  }
-
-  .btn-orange:hover {
-    background: rgba(255, 153, 0, 0.1);
-  }
-
-  /* Spec grid */
-  .spec-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 8px;
-    margin: 20px 0;
-  }
-
-  .spec-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 8px 12px;
-    background: var(--bg-panel);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    font-family: var(--font-mono);
-    font-size: 11px;
-  }
-
-  .spec-row .label { color: var(--text-muted); }
-  .spec-row .value { color: var(--cyan-accent); }
-
-  /* Code block */
-  .code-block {
-    background: #04070c;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    padding: 12px 16px;
-    margin: 16px 0;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    overflow-x: auto;
-    color: #a5b4fc;
-  }
-
-  .code-block header {
-    display: flex;
-    justify-content: space-between;
-    font-size: 9px;
-    color: var(--text-muted);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-    padding-bottom: 6px;
-    margin-bottom: 8px;
-    text-transform: uppercase;
-  }
-
-  .keyword { color: #f43f5e; }
-  .string { color: #10b981; }
-  .number { color: #f59e0b; }
-  .comment { color: #475569; }
-
-  /* Live HUD telemetry */
-  .live-hud {
-    background: var(--bg-panel);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    padding: 16px;
-    margin: 20px 0;
-    font-family: var(--font-mono);
-    font-size: 11px;
-  }
-
-  .live-hud h4 {
-    font-family: var(--font-sans);
-    font-size: 12px;
-    margin-bottom: 10px;
-    color: var(--cyan-accent);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-
-  .live-hud .hud-row {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 4px;
-  }
-
-  .live-hud .hud-bar-wrap {
-    height: 4px;
-    background: #04070c;
-    border: 1px solid var(--border-color);
-    border-radius: 2px;
-    overflow: hidden;
-    margin: 6px 0;
-  }
-
-  .live-hud .hud-bar {
-    height: 100%;
-    background: var(--cyan-accent);
-    width: 0%;
-    transition: width 0.3s;
-  }
-
-  /* Preset voice command panel */
-  .preset-commands-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 6px;
-    margin: 15px 0;
-  }
-
-  .preset-cmd-btn {
-    text-align: left;
-    padding: 10px 14px;
-    background: #090e17;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    color: var(--text-primary);
-    font-family: var(--font-mono);
-    font-size: 10.5px;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .preset-cmd-btn:hover {
-    border-color: var(--cyan-accent);
-    background: rgba(0, 210, 255, 0.05);
-    color: var(--cyan-accent);
-  }
-
-  /* Viewport overlays */
-  .viewport-overlay {
-    position: absolute;
-    bottom: 24px;
-    left: 24px;
-    z-index: 10;
-    background: rgba(13, 19, 31, 0.95);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    padding: 14px 16px;
-    width: 260px;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    pointer-events: none;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-  }
-
-  .viewport-overlay h5 {
-    color: var(--cyan-accent);
-    font-size: 11px;
-    margin-bottom: 6px;
-    text-transform: uppercase;
-  }
-
-  .viewport-control-hint {
-    position: absolute;
-    top: 24px;
-    left: 24px;
-    z-index: 10;
-    background: rgba(9, 14, 23, 0.85);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    padding: 6px 12px;
-    font-family: var(--font-mono);
-    font-size: 9.5px;
-    color: var(--text-muted);
-  }
-
-  /* Speech simulator bubble inside viewport */
-  .viewport-speech-bubble {
-    position: absolute;
-    top: 60px;
-    right: 24px;
-    z-index: 10;
-    background: rgba(255, 153, 0, 0.95);
-    color: #000;
-    border-radius: 6px;
-    padding: 8px 12px;
-    font-family: var(--font-mono);
-    font-size: 10.5px;
-    font-weight: 700;
-    max-width: 250px;
-    display: none;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-    animation: bounceIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  }
-
-  @keyframes bounceIn {
-    from { opacity: 0; transform: scale(0.85); }
-    to { opacity: 1; transform: scale(1); }
-  }
-
-  /* Navigation Header Links */
-  .nav-header-links {
-    display: flex;
-    gap: 8px;
-  }
-
-  .nav-header-links a {
-    font-family: var(--font-mono);
-    font-size: 9.5px;
-    text-decoration: none;
-    color: var(--text-muted);
-    border: 1px solid var(--border-color);
-    padding: 3px 8px;
-    border-radius: 4px;
-    transition: all 0.2s;
-  }
-
-  .nav-header-links a:hover {
-    color: var(--cyan-accent);
-    border-color: var(--cyan-accent);
-  }
-
-  /* Mobile Stack */
-  @media (max-width: 1024px) {
-    .layout-container {
-      flex-direction: column;
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #030614;
+      color: #ffffff;
+      overflow-x: hidden;
     }
-    .doc-panel {
-      width: 100%;
-      height: auto;
-      overflow-y: visible;
-      padding: 30px 20px;
+
+    .glass-panel {
+      background: rgba(10, 15, 40, 0.5);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 1.25rem;
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
     }
-    .viewer-panel {
+
+    .text-gradient {
+      background: linear-gradient(90deg, #4F72FF 0%, #A259FF 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .btn-primary {
+      background: linear-gradient(90deg, #4F72FF 0%, #6366F1 100%);
+      box-shadow: 0 4px 15px rgba(79, 114, 255, 0.4);
+      transition: all 0.3s ease;
+    }
+    
+    .btn-primary:hover {
+      box-shadow: 0 6px 20px rgba(79, 114, 255, 0.6);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      transition: all 0.3s ease;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+
+    .bg-glow {
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(79, 114, 255, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    .orb {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #4F72FF, #0A0F28);
+      box-shadow: 0 0 20px rgba(79, 114, 255, 0.8), inset 0 0 10px rgba(255,255,255,0.5);
+      animation: pulse 2s infinite ease-in-out alternate;
+    }
+
+    .hero-visual-shell {
       width: 100%;
-      height: 40vh;
-      position: sticky;
+      max-width: 760px;
+      min-height: min(58vh, 460px);
+      aspect-ratio: 4 / 3;
+      border-radius: 1.5rem;
+      background: transparent;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .hero-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      filter: drop-shadow(0 0 40px rgba(79, 114, 255, 0.45));
+    }
+
+    .hero-terminal {
+      left: 8%;
+      top: 10%;
+      max-width: min(280px, 70%);
+      backdrop-filter: blur(16px);
+      background: rgba(4, 10, 27, 0.8);
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 15px rgba(79, 114, 255, 0.6), inset 0 0 10px rgba(255,255,255,0.3); }
+      100% { box-shadow: 0 0 30px rgba(79, 114, 255, 1), inset 0 0 15px rgba(255,255,255,0.6); }
+    }
+
+    /* Range slider custom styling */
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      background: transparent;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 16px;
+      width: 16px;
+      border-radius: 50%;
+      background: #4F72FF;
+      cursor: pointer;
+      margin-top: -6px;
+      box-shadow: 0 0 10px rgba(79,114,255,0.8);
+    }
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 4px;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+    }
+    .range-progress {
+      position: absolute;
       top: 0;
-      z-index: 10;
-      border-bottom: 1px solid var(--border-color);
+      left: 0;
+      height: 100%;
+      background: #4F72FF;
+      border-radius: 2px;
     }
-    .viewport-overlay {
-      bottom: 12px;
-      left: 12px;
-      width: calc(100% - 24px);
+
+    .window-light {
+      position: absolute;
+      background: rgba(255, 220, 150, 0.6);
+      box-shadow: 0 0 20px rgba(255, 200, 100, 0.8), inset 0 0 10px rgba(255, 255, 255, 0.4);
+      filter: blur(4px);
+      transform: skewY(26.5deg);
+      z-index: 1;
     }
-    .viewport-speech-bubble {
-      top: 12px;
-      right: 12px;
+
+    /* ---------- hero: locked to exactly one viewport, no scroll inside it ---------- */
+    #hero-screen { min-height: 100vh; height: 100vh; max-height: 100vh; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+    #hero-screen > header { flex-shrink: 0; }
+    #hero-screen > main { flex: 1 1 auto; min-height: 0; overflow: hidden; padding-bottom: clamp(5rem, 8vh, 7rem); }
+    .hero-bottom-overlay {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0.75rem;
+      z-index: 40;
+      pointer-events: none;
     }
-    .viewport-control-hint {
-      display: none;
+    .hero-greeting-card {
+      position: absolute;
+      right: 1.25rem;
+      bottom: 0;
+      pointer-events: auto;
+      max-width: min(420px, calc(100vw - 2rem));
     }
-  }
-</style>
+    .hero-scroll {
+      position: absolute;
+      left: 50%;
+      bottom: 0;
+      transform: translateX(-50%);
+      pointer-events: auto;
+    }
+
+    /* ---------- narrative sections (about content, matched to dark glass theme) ---------- */
+    .story-beat { min-height: 100vh; display: flex; align-items: center; padding: 6vh 8vw; }
+    .story-beat .copy { max-width: 520px; opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s ease; }
+    .story-beat .copy.show { opacity: 1; transform: translateY(0); }
+    .story-beat .eyebrow { font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600; color: #7C9CFF; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 14px; display: inline-block; }
+    .story-beat h2 { font-size: clamp(28px, 4vw, 44px); line-height: 1.1; letter-spacing: -1px; margin-bottom: 16px; font-weight: 800; }
+    .story-beat p { color: #9AA5C0; font-size: 15.5px; line-height: 1.7; max-width: 460px; }
+    .story-beat.right { justify-content: flex-end; }
+    .story-beat.right .copy { text-align: right; margin-left: auto; }
+    .story-stat-row { display: flex; gap: 30px; margin-top: 24px; }
+    .story-beat.right .story-stat-row { justify-content: flex-end; }
+    .story-stat b { display: block; font-size: 22px; font-weight: 700; color: #7C9CFF; }
+    .story-stat span { font-size: 11px; color: #6B7593; }
+    .story-feature-list { list-style: none; margin-top: 20px; display: flex; flex-direction: column; gap: 11px; max-width: 460px; }
+    .story-beat.right .story-feature-list { margin-left: auto; }
+    .story-feature-list li { display: flex; align-items: baseline; gap: 10px; font-size: 14.5px; color: #E4E8F5; }
+    .story-beat.right .story-feature-list li { flex-direction: row-reverse; }
+    .story-feature-list li::before { content: '—'; color: #7C9CFF; }
+    #site-footer { border-top: 1px solid rgba(255,255,255,0.08); padding: 64px 8vw 32px; position: relative; z-index: 10; }
+    #site-footer .footer-grid { display: flex; justify-content: space-between; gap: 48px; flex-wrap: wrap; max-width: 1100px; margin: 0 auto; }
+    #site-footer .footer-brand p { color: #6B7593; font-size: 13.5px; max-width: 260px; line-height: 1.6; margin-top: 8px; }
+    #site-footer .footer-links { display: flex; gap: 56px; flex-wrap: wrap; }
+    #site-footer .footer-links h4 { font-size: 10.5px; letter-spacing: 2px; text-transform: uppercase; color: #6B7593; margin-bottom: 14px; font-weight: 600; }
+    #site-footer .footer-links a { display: block; font-size: 14px; color: #E4E8F5; text-decoration: none; margin-bottom: 10px; opacity: 0.85; }
+    #site-footer .footer-links a:hover { color: #7C9CFF; opacity: 1; }
+    #site-footer .footer-bottom {
+      max-width: 1100px; margin: 48px auto 0; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.08);
+      display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+      font-size: 11px; color: #6B7593; letter-spacing: 0.5px;
+    }
+    @media (max-width: 1023px) {
+      #hero-screen {
+        min-height: auto;
+        height: auto;
+        max-height: none;
+        overflow: visible;
+      }
+      #hero-screen > main {
+        flex-direction: column;
+        justify-content: center;
+        gap: 1.5rem;
+        padding-bottom: 2rem;
+        overflow: visible;
+      }
+      #hero-screen > main > div { width: 100%; max-width: 100%; }
+      .hero-visual-shell {
+        min-height: 320px;
+        max-width: 640px;
+        margin: 0 auto;
+      }
+      .hero-bottom-overlay {
+        position: relative;
+        margin-top: 1rem;
+        padding-bottom: 1rem;
+      }
+      .hero-greeting-card {
+        position: relative;
+        inset: auto;
+        right: auto;
+        bottom: auto;
+        margin-bottom: 1rem;
+      }
+      .hero-scroll {
+        position: relative;
+        left: auto;
+        bottom: auto;
+        transform: none;
+        margin-top: 0.5rem;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .story-beat { padding: 5vh 5vw; }
+      .story-beat .copy { max-width: 100%; }
+      #site-footer .footer-grid { flex-direction: column; gap: 32px; }
+      #site-footer .footer-bottom { flex-direction: column; }
+      .hero-visual-shell { min-height: 240px; }
+      .hero-terminal,
+      .hero-greeting-card,
+      .hero-scroll {
+        display: none !important;
+      }
+      .hero-image {
+        height: auto;
+        min-height: 240px;
+      }
+      .hero-visual-shell {
+        margin: 0 auto;
+      }
+      .glass-panel { border-radius: 1rem; }
+      .text-5xl { font-size: 2.5rem; }
+      .lg\:text-[5\.5rem] { font-size: 2.5rem; }
+      .text-2xl { font-size: 1.6rem; }
+      .lg\:text-3xl { font-size: 1.6rem; }
+      .btn-primary,
+      .btn-secondary { width: 100%; justify-content: center; }
+    }
+
+  </style>
 </head>
-<body>
-
-<div class="layout-container">
-  
-  <!-- Left Panel: Pitch Deck & documentation -->
-  <div class="doc-panel" id="scroll-container">
-    
-    <header class="tech-header">
-      <div class="logo">SMART_HOUSE // BLUE_SPEC</div>
-      <div class="nav-header-links">
-        <a href="/dashboard">Blueprint</a>
-        <a href="/xray">X-Ray Tour</a>
-        <a href="/threed">3D Walk</a>
-        <a href="/web">Tester</a>
-      </div>
-    </header>
-
-    <!-- View Mode Switcher -->
-    <div class="mode-toggle-wrap">
-      <button class="mode-btn active" id="btn-mode-pitch" onclick="setMode('pitch')">PITCH DECK</button>
-      <button class="mode-btn" id="btn-mode-docs" onclick="setMode('docs')">TECHNICAL SPEC</button>
-    </div>
-
-    <!-- PITCH DECK MODE -->
-    <div class="mode-content active" id="content-pitch">
-      <div class="slide-container">
-        
-        <!-- Slide 0: The Hook -->
-        <div class="slide active" id="slide-0">
-          <span class="section-tag">[00 // THE_PROBLEM &amp; THE_SOLUTION]</span>
-          <h2>A Co-Design Bridge for Smart Hardware</h2>
-          <p class="lead">
-            Smart home apps and microcontrollers are usually developed in silos. App teams mock APIs, while hardware teams struggle with custom protocols. 
-          </p>
-          <div class="slide-bullet">
-            <div class="icon">➔</div>
-            <div class="text">
-              <h4>Unified Simulator Environment</h4>
-              <p>App and hardware teams build against the exact same commands. Swap virtual simulation for physical ESP8266 devices instantly.</p>
-            </div>
-          </div>
-          <div class="slide-bullet">
-            <div class="icon">➔</div>
-            <div class="text">
-              <h4>3D Virtual Mockups</h4>
-              <p>Test spatial commands and voice intent models inside the WebGL house plan before wiring any physical relays.</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Slide 1: Device Mapping -->
-        <div class="slide" id="slide-1">
-          <span class="section-tag">[01 // SPATIAL_SCHEMA]</span>
-          <h2>The 19-Device Mapping</h2>
-          <p>
-            Every virtual light, door, safety valve, and socket is mapped to coordinates matching an architectural blueprint. 
-          </p>
-          <div class="spec-grid">
-            <div class="spec-row"><span class="label">Interior Lighting System</span><span class="value">10 addressed bulb nodes</span></div>
-            <div class="spec-row"><span class="label">Access Controls</span><span class="value">6 swing doors + 1 double gate</span></div>
-            <div class="spec-row"><span class="label">Appliance Sockets</span><span class="value">8 load-aware plug points</span></div>
-            <div class="spec-row"><span class="label">Piping Protection</span><span class="value">1 mechanical water valve</span></div>
-          </div>
-          <p style="font-size: 13px;">
-            *Look at the right viewport. Glowing yellow lines map the electrical conduits routing from the core breaker to individual rooms.
-          </p>
-        </div>
-
-        <!-- Slide 2: API Protocol -->
-        <div class="slide" id="slide-2">
-          <span class="section-tag">[02 // RUNTIME_API]</span>
-          <h2>Standard Command Protocol</h2>
-          <p>
-            Control devices with simple JSON structures. The API supports immediate switching, group triggers, and delayed scheduler timers out of the box.
-          </p>
-          <div class="code-block">
-            <header><span>POST /command</span><span>HTTP Payload</span></header>
-            <code>
-{<br>
-&nbsp;&nbsp;<span class="keyword">"device"</span>: <span class="string">"light_living_center"</span>,<br>
-&nbsp;&nbsp;<span class="keyword">"action"</span>: <span class="string">"on"</span>,<br>
-&nbsp;&nbsp;<span class="keyword">"delay_seconds"</span>: <span class="number">10</span><br>
-}
-            </code>
-          </div>
-          <button class="btn btn-primary" onclick="runDemoCommandSequence()">⚡ Trigger Corner Sequence</button>
-        </div>
-
-        <!-- Slide 3: Voice AI -->
-        <div class="slide" id="slide-3">
-          <span class="section-tag">[03 // ONLINE_AI_INTERPRET]</span>
-          <h2>Natural Language Compilation</h2>
-          <p>
-            No hardcoded commands. Route transcripts to LLMs through OpenRouter to extract multiple contextual commands and timing details.
-          </p>
-          
-          <div class="preset-commands-grid">
-            <button class="preset-cmd-btn" onclick="simSpeech('Everyone left the house')">💬 "Everyone left the house" (Auto-off)</button>
-            <button class="preset-cmd-btn" onclick="simSpeech('Going to bed, turn off study and lock gate')">💬 "Going to bed, turn off study &amp; lock gate"</button>
-            <button class="preset-cmd-btn" onclick="simSpeech('Open main gate and turn on outdoor light')">💬 "Open main gate &amp; turn on outdoor light"</button>
-          </div>
-          <p style="font-size: 12px; color: var(--orange-accent);">
-            *Click a preset script above to simulate how the voice model acts in real time.
-          </p>
-        </div>
-
-        <!-- Slide 4: prepaid engine -->
-        <div class="slide" id="slide-4">
-          <span class="section-tag">[04 // UTILITY_INTEGRATION]</span>
-          <h2>Prepaid Grid Simulation</h2>
-          <p>
-            Implements Rwanda's tiered utility tariff (effective Oct 2025). The background thread processes continuous appliance wattages and drains prepaid kWh.
-          </p>
-          <div class="spec-grid">
-            <div class="spec-row"><span class="label">Tier 1 (0-20 kWh consumed)</span><span class="value">89 RWF / kWh</span></div>
-            <div class="spec-row"><span class="label">Tier 2 (20-50 kWh consumed)</span><span class="value">310 RWF / kWh</span></div>
-            <div class="spec-row"><span class="label">Tier 3 (50+ kWh consumed)</span><span class="value">369 RWF / kWh</span></div>
-          </div>
-          <p style="font-size: 13px;">
-            <strong>Prepaid Cutoff:</strong> If prepaid kWh balance hits zero, an immediate hardware cutoff thread opens, shutting down all power-drawing virtual relays instantly.
-          </p>
-        </div>
-
-        <!-- Slide 5: Hardware specs -->
-        <div class="slide" id="slide-5">
-          <span class="section-tag">[05 // PHYSICAL_DEPLOYMENT]</span>
-          <h2>ESP8266 Relays Co-Design</h2>
-          <p>
-            The hardware team builds against the exact same routes. Flashing an ESP8266 with `bulb_relay.ino` links it to the dashboard.
-          </p>
-          <div class="code-block">
-            <header><span>esp8266/bulb_relay.ino</span><span>Arduino / C++</span></header>
-            <code>
-<span class="comment">// WiFi triggers match the simulator schema</span><br>
-StaticJsonDocument&lt;200&gt; doc;<br>
-deserializeJson(doc, server.arg(<span class="string">"plain"</span>));<br>
-<span class="keyword">const char</span>* device = doc[<span class="string">"device"</span>];<br>
-<span class="keyword">const char</span>* action = doc[<span class="string">"action"</span>];<br>
-<br>
-<span class="keyword">if</span> (String(device) == DEVICE_ID) {<br>
-&nbsp;&nbsp;digitalWrite(RELAY_PIN, String(action) == <span class="string">"on"</span> ? HIGH : LOW);<br>
-}
-            </code>
-          </div>
-          <div class="button-group">
-            <a href="/xray" class="btn btn-primary">X-Ray Tour</a>
-            <a href="/dashboard" class="btn btn-secondary">Launch Live Blueprint</a>
-            <a href="/threed" class="btn btn-secondary">Walk 3D House</a>
-          </div>
-        </div>
-
-        <!-- Slide Navigator Navigation Controls -->
-        <div class="slide-controls">
-          <button class="btn btn-secondary" id="btn-slide-prev" onclick="changeSlide(-1)">BACK</button>
-          <div class="dots-wrap" id="dots-container"></div>
-          <button class="btn btn-primary" id="btn-slide-next" onclick="changeSlide(1)">NEXT</button>
-        </div>
-
-      </div>
-    </div>
-
-    <!-- DOCUMENTATION MODE (SCROLLABLE TEXT) -->
-    <div class="mode-content" id="content-docs">
-      
-      <section>
-        <span class="section-tag">[01 // CO_DESIGN_CONCEPT]</span>
-        <h1>Smart House Co-Design Platform</h1>
-        <p>
-          A unified simulator backend and 3D virtual environment enabling application developers and hardware engineers to work concurrently. The environment models physical parameters like appliance wattage draws, prepaid electricity grid tiers, and automated cutoffs.
-        </p>
-        <p>
-          Instead of deploying code directly to hardware, the app team builds intent models, voice pipelines, and floor plan dashboards using virtual devices. When the hardware team completes WiFi-relay modules, the simulator swaps nodes seamlessly.
-        </p>
-      </section>
-
-      <section>
-        <span class="section-tag">[02 // DEVICE_DIRECTORY]</span>
-        <h2>19-Device Mapping Registry</h2>
-        <p>
-          The house interior contains rooms labeled Room 1 (Guest), Room 2 (Study), Room 3, Room 4 (Master), Kitchen, Bathroom, Hallway, and an outdoor perimeter. The full physical schema contains:
-        </p>
-        <div class="spec-grid">
-          <div class="spec-row"><span class="label">light_living_top_left, ...</span><span class="value">5x Living Room Bulbs (10-15W)</span></div>
-          <div class="spec-row"><span class="label">light_room_1, light_kitchen, ...</span><span class="value">5x Bedroom &amp; Kitchen Bulbs (10W)</span></div>
-          <div class="spec-row"><span class="label">fridge, tv, microwave, water_heater</span><span class="value">4x Appliances (100W - 2000W)</span></div>
-          <div class="spec-row"><span class="label">socket_living_1..4, socket_room_1..4</span><span class="value">8x Mechanical Wall Sockets (150W)</span></div>
-          <div class="spec-row"><span class="label">door_room_1..4, door_kitchen, ...</span><span class="value">7x Automated Swing Doors (0W)</span></div>
-          <div class="spec-row"><span class="label">valve_kitchen</span><span class="value">1x Kitchen Water Valve (0W)</span></div>
-          <div class="spec-row"><span class="label">gate_main</span><span class="value">1x Double Entrance Gate (0W)</span></div>
-        </div>
-      </section>
-
-      <section>
-        <span class="section-tag">[03 // API_SPECIFICATIONS]</span>
-        <h2>REST Control Schema</h2>
-        <p>
-          Devices accept HTTP POST requests containing target identifier and state commands. Delays are queued natively on background threads.
-        </p>
-        <div class="code-block">
-          <header><span>Endpoint</span><span>POST /command</span></header>
-          <code>
-{<br>
-&nbsp;&nbsp;<span class="keyword">"device"</span>: <span class="string">"gate_main"</span>,<br>
-&nbsp;&nbsp;<span class="keyword">"action"</span>: <span class="string">"open"</span>,<br>
-&nbsp;&nbsp;<span class="keyword">"delay_seconds"</span>: <span class="number">15</span><br>
-}
-          </code>
-        </div>
-      </section>
-
-      <section>
-        <span class="section-tag">[04 // AI_PIPELINE]</span>
-        <h2>Speech Interpretation Workflow</h2>
-        <p>
-          The online pipeline targets transcripts via the <code>/interpret</code> endpoint. It fetches current states and feeds the context to large models to output a list of executed actions:
-        </p>
-        <div class="code-block">
-          <header><span>LLM Output Format</span><span>JSON</span></header>
-          <code>
-{<br>
-&nbsp;&nbsp;<span class="keyword">"commands"</span>: [<br>
-&nbsp;&nbsp;&nbsp;&nbsp;{<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">"device"</span>: <span class="string">"light_room_1"</span>,<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">"action"</span>: <span class="string">"off"</span>,<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">"delay_seconds"</span>: <span class="number">0</span>,<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">"reasoning"</span>: <span class="string">"Turn off guest bulb immediately."</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;}<br>
-&nbsp;&nbsp;]<br>
-}
-          </code>
-        </div>
-      </section>
-
-      <section>
-        <span class="section-tag">[05 // UTILITY_SIMULATOR]</span>
-        <h2>EUCL Tariff Engine Details</h2>
-        <p>
-          Electricity balance is tracked in kWh. Continuous appliance draws are accumulated every second. Resets occur via <code>/energy/reset_month</code>.
-        </p>
-        <div class="live-hud">
-          <h4>Telemetries</h4>
-          <div class="hud-row"><span>Balance</span><span id="doc-balance">0.00 kWh</span></div>
-          <div class="hud-row"><span>Load Draw</span><span id="doc-watts">0 W</span></div>
-        </div>
-      </section>
-
-      <section>
-        <span class="section-tag">[06 // PHYSICAL_DESTRUCTION]</span>
-        <h2>Hardware Wiring Schematic</h2>
-        <p>
-          The Arduino sketch <code>esp8266/bulb_relay.ino</code> maps commands directly to GPIO registers on ESP8266 boards. Relays are wired to the common terminal block of outlets.
-        </p>
-      </section>
-
-    </div>
-
-    <footer style="padding-top: 30px; border-top: 1px solid var(--border-color); font-family: var(--font-mono); font-size: 9.5px; color: var(--text-muted); text-align: center; margin-top: auto;">
-      SMART HOUSE SIMULATOR // ARCHITECTURAL DRAFTING BLUEPRINT
-    </footer>
-
-  </div>
-
-  <!-- Sticky WebGL Viewer Column -->
-  <div class="viewer-panel">
-    <div class="viewport-control-hint">DRAG TO ROTATE // PITCH MODE TRANSITIONS CAMERA</div>
-    
-    <!-- Speech Simulated Overlay -->
-    <div class="viewport-speech-bubble" id="sim-bubble">
-      <div style="font-size: 8px; color: rgba(0,0,0,0.5); font-family: var(--font-mono); margin-bottom: 2px;">TRANSCRIPT RECEIVED:</div>
-      <div id="sim-speech-text">"Everyone left..."</div>
-      <div style="font-size: 8px; color: rgba(0,0,0,0.6); font-family: var(--font-mono); border-top: 1px solid rgba(0,0,0,0.1); margin-top: 6px; padding-top: 4px;" id="sim-speech-reasoning">
-        Auto-off active...
-      </div>
-    </div>
-
-    <canvas id="webgl-canvas"></canvas>
-
-    <!-- Overlay displaying dynamic blueprint metrics -->
-    <div class="viewport-overlay" id="viewport-hud">
-      <h5>CAD SCHEMATICS</h5>
-      <div style="margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
-        <span style="color: var(--text-muted)">TARGET FOCUS: </span><span id="cad-target" style="color: var(--cyan-accent)">OVERVIEW</span>
-      </div>
-      <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 4px;">
-        <span style="color: var(--text-muted)">WATTAGE:</span><span id="cad-watts" style="color: var(--text-primary)">0 W</span>
-        <span style="color: var(--text-muted)">COORDINATES:</span><span id="cad-coords" style="color: var(--text-primary)">[X: 0, Z: 0]</span>
-        <span style="color: var(--text-muted)">CAD STATE:</span><span id="cad-mode" style="color: var(--orange-accent)">PERSPECTIVE</span>
-      </div>
-    </div>
-  </div>
+<body class="relative">
+<div id="hero-screen">
+<!-- Background Glows -->
+<div class="bg-glow top-0 left-0 -translate-x-1/4 -translate-y-1/4"></div>
+<div class="bg-glow bottom-0 right-0 translate-x-1/4 translate-y-1/4"></div>
+<!-- BEGIN: Navigation -->
+<header class="container mx-auto px-6 py-4 flex items-center justify-between relative z-50">
+<div class="flex items-center gap-2">
+<svg fill="none" height="32" viewBox="0 0 32 32" width="32" xmlns="http://www.w3.org/2000/svg">
+<path d="M8 8V24H12V18H20V14H12V12H22V8H8Z" fill="url(#paint0_linear)"></path>
+<path d="M8 8H12L24 24H20L8 8Z" fill="#4F72FF" fill-opacity="0.5"></path>
+<defs>
+<linearGradient gradientUnits="userSpaceOnUse" id="paint0_linear" x1="8" x2="22" y1="16" y2="16">
+<stop stop-color="#4F72FF"></stop>
+<stop offset="1" stop-color="#A259FF"></stop>
+</linearGradient>
+</defs>
+</svg>
+<span class="text-xl font-bold tracking-wide">FRIDAY</span>
+</div>
+<nav class="hidden md:flex items-center gap-8 text-sm font-medium text-gray-300">
+<a class="hover:text-white transition-colors" href="#">Features</a>
+<a class="hover:text-white transition-colors" href="#">Technology</a>
+<a class="hover:text-white transition-colors" href="#">Pricing</a>
+<a class="hover:text-white transition-colors" href="#">About</a>
+<a class="hover:text-white transition-colors" href="#">Contact</a>
+</nav>
+<div class="flex items-center gap-4">
+<button class="btn-secondary px-6 py-2 rounded-full text-sm font-medium">Login</button>
+<button class="btn-primary px-6 py-2 rounded-full text-sm font-medium">Get Started</button>
+</div>
+</header>
+<!-- END: Navigation -->
+<!-- BEGIN: Main Hero Section -->
+<main class="container mx-auto px-6 h-full relative z-10 flex flex-col lg:flex-row items-center justify-between gap-6">
+<!-- Left Content -->
+<div class="lg:w-5/12 max-w-2xl flex flex-col items-start z-20 shrink-0 py-4 order-2 lg:order-1">
+<div class="glass-panel px-4 py-2 flex items-center gap-2 rounded-full mb-5">
+<svg class="w-4 h-4 text-blue-400" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2l1.6 4.8H17l-4 3.2 1.5 4.8L10 12l-4.5 2.8 1.5-4.8-4-3.2h5.4L10 2z"></path></svg>
+<span class="text-xs font-semibold tracking-widest text-blue-400 uppercase">AI Home Assistant</span>
+</div>
+<h1 class="text-5xl lg:text-[5.5rem] font-black mb-2 tracking-tighter text-gradient leading-none">FRIDAY</h1>
+<h2 class="text-2xl lg:text-3xl font-semibold mb-4">Your <span class="text-blue-500">AI</span> Home Assistant</h2>
+<p class="text-gray-400 text-base mb-6 max-w-md leading-relaxed">
+        Control your smart home, monitor electricity, view blueprints and interact naturally with AI.
+      </p>
+<div class="flex flex-wrap items-center gap-4 mb-6">
+<button class="btn-primary px-6 py-3 rounded-full font-semibold flex items-center gap-2">
+          Get Started
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+<button class="btn-secondary px-6 py-3 rounded-full font-semibold flex items-center gap-2 text-gray-300 hover:text-white">
+          Watch Demo
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+<!-- Feature Pills -->
+<div class="glass-panel flex items-center mt-auto hidden md:flex p-3 w-full gap-5">
+<div class="flex items-start gap-4">
+<div class="p-3 rounded-xl bg-blue-500/10 text-blue-400">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+</div>
+<div>
+<h4 class="font-semibold text-white mb-1 text-xs">Smart Control</h4>
+<p class="text-gray-400 text-[10px]">Manage all devices<br>in one place.</p>
+</div>
+</div>
+<div class="w-px h-12 bg-white/10"></div>
+<div class="flex items-start gap-4">
+<div class="p-3 rounded-xl bg-purple-500/10 text-purple-400">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+</div>
+<div>
+<h4 class="font-semibold text-white mb-1 text-xs">Energy Monitor</h4>
+<p class="text-gray-400 text-[10px]">Track usage and<br>save electricity.</p>
+</div>
+</div>
+<div class="w-px h-12 bg-white/10"></div>
+<div class="flex items-start gap-4">
+<div class="p-3 rounded-xl bg-indigo-500/10 text-indigo-400">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+</div>
+<div>
+<h4 class="font-semibold text-white mb-1 text-xs">AI Assistant</h4>
+<p class="text-gray-400 text-[10px]">Natural voice &amp; text<br>interaction.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Content / Visuals -->
+<div class="lg:w-7/12 relative h-full max-h-[62vh] lg:max-h-[70vh] w-full flex justify-center items-center order-1 lg:order-2">
+<!-- Hero visual -->
+<div class="hero-visual-shell relative w-full flex justify-center items-center">
+<img alt="FRIDAY interface preview" class="hero-image" src="{{ url_for('static', filename='screen-removebg-preview.png') }}" />
+<div class="hero-terminal glass-panel absolute p-4 z-20">
+<div class="flex items-center gap-2 mb-3">
+<span class="w-2.5 h-2.5 rounded-full bg-red-400"></span>
+<span class="w-2.5 h-2.5 rounded-full bg-yellow-400"></span>
+<span class="w-2.5 h-2.5 rounded-full bg-green-400"></span>
+</div>
+<div class="font-mono text-[11px] leading-6 text-slate-200">
+<div class="text-blue-400">$ friday monitor --live</div>
+<div>• living room: 84% active</div>
+<div>• kitchen: 12% active</div>
+<div>• savings: +2.40 today</div>
+</div>
+</div>
+<!-- Simulated Lights -->
 
 </div>
+<!-- UI Cards Overlay -->
+<div class="absolute inset-0 w-full h-full z-10 hidden md:block">
+<!-- Electricity Usage Card -->
+<div class="glass-panel p-4 absolute top-[2%] right-[8%] w-[270px] transform translate-y-4 hover:-translate-y-2 transition-transform duration-300 backdrop-blur-xl bg-[#0a0f28]/70">
+<div class="flex items-center gap-2 mb-3 text-gray-300">
+<svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span class="text-sm font-medium">Electricity Usage</span>
+</div>
+<div class="flex justify-between items-end mb-1">
+<div class="text-3xl font-bold text-white">12.45 <span class="text-sm font-normal text-gray-400">kWh</span></div>
+<div class="text-xs text-green-400 bg-green-400/10 px-2 py-1 rounded">+ 8.2%</div>
+</div>
+<div class="text-xs text-gray-500 mb-3">Today</div>
+<!-- Fake Graph -->
+<div class="w-full h-12 relative overflow-hidden">
+<svg class="w-full h-full preserve-3d" preserveAspectRatio="none" viewBox="0 0 200 50">
+<path d="M0,40 Q20,20 40,30 T80,20 T120,40 T160,10 T200,30 L200,50 L0,50 Z" fill="rgba(79, 114, 255, 0.2)"></path>
+<path d="M0,40 Q20,20 40,30 T80,20 T120,40 T160,10 T200,30" fill="none" stroke="#4F72FF" stroke-width="3"></path>
+</svg>
+</div>
+</div>
+<!-- Living Room Light Card -->
+<div class="glass-panel p-4 absolute top-[45%] right-[-3%] w-[260px] transform -translate-y-1/2 translate-x-4 hover:translate-x-2 transition-transform duration-300 flex items-center justify-between gap-4 backdrop-blur-xl bg-[#0a0f28]/70">
+<div class="flex-1">
+<h4 class="text-sm text-gray-300 mb-2">Living Room Light</h4>
+<div class="text-2xl font-bold text-blue-400 mb-3">80%</div>
+<!-- Custom Range Slider -->
+<div class="relative w-full h-1.5 bg-white/10 rounded-full">
+<div class="absolute top-0 left-0 h-full bg-blue-500 rounded-full" style="width: 80%;"></div>
+<div class="absolute top-1/2 left-[80%] w-4 h-4 bg-white rounded-full -translate-x-1/2 -translate-y-1/2 shadow-[0_0_10px_#4F72FF]"></div>
+</div>
+</div>
+<div class="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 shadow-[0_0_20px_rgba(79,114,255,0.4)] shrink-0">
+<svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zM12 14c.015-.34.208-.646.477-.859a4 4 0 10-4.954 0c.27.213.462.519.476.859h4.002z"></path></svg>
+</div>
+</div>
+<!-- Security System Card -->
+<div class="glass-panel p-4 absolute bottom-[6%] right-[4%] w-[240px] transform translate-y-4 hover:-translate-y-2 transition-transform duration-300 flex items-center justify-between gap-4 backdrop-blur-xl bg-[#0a0f28]/70">
+<div>
+<h4 class="text-sm text-gray-300 mb-1">Security System</h4>
+<div class="text-green-400 font-medium text-lg">Active</div>
+</div>
+<div class="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center text-green-400 shadow-[0_0_20px_rgba(74,222,128,0.3)] shrink-0">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- END: Main Hero Section -->
+<!-- BEGIN: Bottom UI Overlay (Greeting & Scroll) -->
+<div class="hero-bottom-overlay">
+<div class="container mx-auto px-6 relative h-full">
+<!-- Greeting Card -->
+<div class="hero-greeting-card glass-panel p-2 pr-8 flex items-center gap-4 rounded-full backdrop-blur-xl bg-[#0a0f28]/70">
+<div class="w-16 h-16 rounded-full flex items-center justify-center bg-blue-900/40 p-2 shrink-0">
+<div class="orb"></div>
+</div>
+<div>
+<h4 class="text-lg font-medium text-white">Hello, Aime! 👋</h4>
+<p class="text-sm text-gray-400">How can I help you today?</p>
+</div>
+</div>
+<!-- Scroll Indicator -->
+<div class="hero-scroll flex flex-col items-center gap-2 text-gray-500 cursor-pointer hover:text-white transition-colors">
+<svg class="w-6 h-8 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect height="16" rx="5" stroke-width="1.5" width="10" x="7" y="4"></rect><path d="M12 8v4" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+<span class="text-xs uppercase tracking-widest">Scroll Down</span>
+<svg class="w-3 h-3 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 14l-7 7m0 0l-7-7m7 7V3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+</div>
+</div>
+<!-- END: Bottom UI Overlay -->
+</div>
+<!-- END: hero-screen (locked to 100vh) -->
 
-<!-- Three.js Setup -->
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-  }
+<!-- BEGIN: Story sections (content from about.html, matched to dark glass theme) -->
+<main id="story">
+
+<section class="story-beat">
+<div class="copy">
+<span class="eyebrow">01 — The problem</span>
+<h2>The invisible problem.</h2>
+<p>Every day, energy bleeds from homes — silently, invisibly, expensively. The waste isn't malicious. It's human: lights left on in empty rooms, AC cooling nobody, chargers drawing power around the clock, TVs on standby, appliances forgotten and running.</p>
+<div class="story-stat-row">
+<div class="story-stat"><b>19</b><span>rooms &amp; zones</span></div>
+<div class="story-stat"><b>30</b><span>connected devices</span></div>
+<div class="story-stat"><b>live</b><span>backend, not staged</span></div>
+</div>
+</div>
+</section>
+
+<section class="story-beat right">
+<div class="copy">
+<span class="eyebrow">02 — The solution</span>
+<h2>Meet FRIDAY.</h2>
+<p>FRIDAY is not another smart home app. FRIDAY is an intelligent presence — one that understands your home, thinks ahead, and acts on your behalf.</p>
+<ul class="story-feature-list">
+<li>Understands your house</li>
+<li>Watches energy in real time</li>
+<li>Learns your daily routines</li>
+<li>Protects your wallet</li>
+</ul>
+</div>
+</section>
+
+<section class="story-beat">
+<div class="copy">
+<span class="eyebrow">03 — Core feature</span>
+<h2>Your house becomes alive.</h2>
+<p>FRIDAY creates a living digital twin of your home. Every room glows in real time — color-coded by energy consumption. No more guessing. Just clarity at a glance.</p>
+<ul class="story-feature-list">
+<li>🟢 Green — normal consumption, all is well</li>
+<li>🟡 Yellow — medium usage, worth monitoring</li>
+<li>🔴 Red — high consumption, immediate attention</li>
+</ul>
+</div>
+</section>
+
+<section class="story-beat right">
+<div class="copy">
+<span class="eyebrow">04 — Interface</span>
+<h2>Interactive blueprint.</h2>
+<p>A precision-engineered blueprint becomes your command center. Each room displays floating data cards with live metrics — tap any room to control every connected device instantly.</p>
+<ul class="story-feature-list">
+<li>Device — status &amp; identity</li>
+<li>Power — real-time wattage draw</li>
+<li>Cost — live energy expenditure</li>
+<li>Running time — duration tracking per device</li>
+</ul>
+</div>
+</section>
+
+<section class="story-beat">
+<div class="copy">
+<span class="eyebrow">05 — Intelligence</span>
+<h2>FRIDAY intelligence.</h2>
+<p>Seven AI capabilities working in concert — continuously, silently, protectively.</p>
+<ul class="story-feature-list">
+<li>Forgotten appliance detection</li>
+<li>Bill prediction before it arrives</li>
+<li>Unusual usage alerts</li>
+<li>Habit learning &amp; scheduling</li>
+<li>Natural language answers about your home</li>
+</ul>
+</div>
+</section>
+
+<section class="story-beat right">
+<div class="copy">
+<span class="eyebrow">06 — Connectivity</span>
+<h2>Remote control — anywhere in the world.</h2>
+<p>Your home never sleeps. Neither does FRIDAY. Control every system from any device, anywhere on earth — with zero latency and military-grade security.</p>
+<ul class="story-feature-list">
+<li>Your phone</li>
+<li>FRIDAY cloud</li>
+<li>AI processing</li>
+<li>Smart home hub</li>
+</ul>
+</div>
+</section>
+
+<section class="story-beat">
+<div class="copy">
+<span class="eyebrow">07 — Architecture</span>
+<h2>Technology stack.</h2>
+<p>FRIDAY is built on a lean, modern stack designed for speed, reliability, and scalability — engineered for real-time performance in premium residential environments.</p>
+<div class="story-stat-row">
+<div class="story-stat"><b>12.45 kWh</b><span>current draw</span></div>
+<div class="story-stat"><b>8.2%</b><span>vs. yesterday</span></div>
+</div>
+</div>
+</section>
+
+<section class="story-beat right">
+<div class="copy">
+<span class="eyebrow">08 — Differentiation</span>
+<h2>Why FRIDAY is different.</h2>
+<p>Six capabilities no competitor delivers as one unified, intelligent system.</p>
+<ul class="story-feature-list">
+<li>Digital twin — a living replica of your home's energy</li>
+<li>AI assistant — natural language intelligence built in</li>
+<li>Remote control — full command from anywhere on earth</li>
+<li>Energy intelligence — deep consumption insights</li>
+<li>Live blueprint — real-time architectural visualization</li>
+<li>Predictive analytics — forecast bills, detect anomalies</li>
+</ul>
+</div>
+</section>
+
+<section class="story-beat" style="min-height: 100vh;">
+<div class="copy">
+<span class="eyebrow">09 — Vision</span>
+<h2>The future of smart living starts here.</h2>
+<p>FRIDAY is not a product. It is a new standard for how intelligent homes should think, feel, and protect.</p>
+<ul class="story-feature-list">
+<li>For homeowners — protect your investment, reduce waste</li>
+<li>For developers — deliver homes that think</li>
+<li>For investors — enter the fastest-growing segment in proptech</li>
+</ul>
+<p style="margin-top:16px; color:#fff; font-weight:600;">FRIDAY doesn't just manage energy. It redefines what a home can be.</p>
+</div>
+</section>
+
+</main>
+<!-- END: Story sections -->
+
+<!-- BEGIN: Footer -->
+<footer id="site-footer">
+<div class="footer-grid">
+<div class="footer-brand">
+<span class="text-xl font-bold tracking-wide">FRIDAY</span>
+<p>An AI-powered smart energy management system, built by 1% Digital Solutions.</p>
+</div>
+<nav class="footer-links">
+<div>
+<h4>Product</h4>
+<a href="#hero-screen">Overview</a>
+<a href="#story">Intelligence</a>
+<a href="#story">Blueprint</a>
+</div>
+<div>
+<h4>Company</h4>
+<a href="https://github.com/AIME-LOIC" target="_blank" rel="noopener">GitHub</a>
+<a href="#hero-screen">1% Digital Solutions</a>
+<a href="mailto:hello@1percent.rw">Contact</a>
+</div>
+</nav>
+</div>
+<div class="footer-bottom">
+<span>© 2026 1% Digital Solutions. All rights reserved.</span>
+<span>Kigali, Rwanda</span>
+</div>
+</footer>
+<!-- END: Footer -->
+
+<script>
+/* simple fade-in for story beats as they cross the viewport (vanilla JS, no 3D engine) */
+const beats = document.querySelectorAll('.story-beat .copy');
+function updateBeats() {
+  const vh = window.innerHeight;
+  beats.forEach(el => {
+    const r = el.getBoundingClientRect();
+    const center = r.top + r.height / 2;
+    el.classList.toggle('show', Math.abs(center - vh / 2) < vh * 0.6);
+  });
 }
+window.addEventListener('scroll', updateBeats, { passive: true });
+updateBeats();
 </script>
-
-<script type="module">
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-
-// Scale factor mapping SVG units to world dimensions
-const S = 0.024;
-const WALL_H = 2.4;
-const svgToWorld = (x, y) => new THREE.Vector3(x * S, 0, y * S);
-
-const canvas = document.getElementById('webgl-canvas');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(canvas.clientWidth, canvas.clientHeight);
-
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x070b12);
-scene.fog = new THREE.Fog(0x070b12, 18, 55);
-
-const camera = new THREE.PerspectiveCamera(50, canvas.clientWidth / canvas.clientHeight, 0.1, 200);
-camera.position.set(13, 17, 20);
-
-const houseCenter = new THREE.Vector3((60 + 940) / 2 * S, 0, (60 + 570) / 2 * S);
-
-const orbit = new OrbitControls(camera, renderer.domElement);
-orbit.target.copy(houseCenter);
-orbit.enableDamping = true;
-orbit.dampingFactor = 0.05;
-orbit.maxPolarAngle = Math.PI * 0.47;
-orbit.minDistance = 3;
-orbit.maxDistance = 50;
-orbit.update();
-
-// Lights
-const hemiLight = new THREE.HemisphereLight(0x0ea5e9, 0x050810, 0.5);
-scene.add(hemiLight);
-
-const dirLight = new THREE.DirectionalLight(0x38bdf8, 0.7);
-dirLight.position.set(20, 40, 15);
-scene.add(dirLight);
-
-// ---------------------------------------------------------
-// Blueprint Materials
-// ---------------------------------------------------------
-const wallMat = new THREE.MeshStandardMaterial({ 
-  color: 0x0c1a29, 
-  roughness: 0.8,
-  transparent: true,
-  opacity: 0.45,
-  metalness: 0.4
-});
-
-const edgeMat = new THREE.LineBasicMaterial({ 
-  color: 0x00a2ff, 
-  linewidth: 1.5
-});
-
-const floorMat = new THREE.MeshStandardMaterial({ 
-  color: 0x060c16, 
-  roughness: 0.9,
-  metalness: 0.1
-});
-
-const ground = new THREE.GridHelper(100, 50, 0x141f2e, 0x0c1420);
-ground.position.y = -0.01;
-scene.add(ground);
-
-// ---------------------------------------------------------
-// Build CAD Plan programmatically
-// ---------------------------------------------------------
-const addFloorRect = (x1, x2, y1, y2, mat) => {
-  const w = (x2 - x1) * S, d = (y2 - y1) * S;
-  const geo = new THREE.PlaneGeometry(w, d);
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.rotation.x = -Math.PI / 2;
-  const c = svgToWorld((x1 + x2) / 2, (y1 + y2) / 2);
-  mesh.position.set(c.x, 0.001, c.z);
-  scene.add(mesh);
-
-  const edgesGeo = new THREE.EdgesGeometry(geo);
-  const line = new THREE.LineSegments(edgesGeo, new THREE.LineBasicMaterial({ color: 0x12243d }));
-  line.rotation.x = -Math.PI / 2;
-  line.position.copy(mesh.position);
-  scene.add(line);
-};
-
-// Rooms
-addFloorRect(76, 266, 76, 300, floorMat);   // Room 1
-addFloorRect(280, 490, 76, 300, floorMat);  // Kitchen
-addFloorRect(504, 704, 76, 300, floorMat);  // Room 3
-addFloorRect(718, 924, 76, 300, floorMat);  // Bathroom
-addFloorRect(76, 490, 390, 554, floorMat);  // Living room
-addFloorRect(504, 704, 390, 554, floorMat); // Room 2
-addFloorRect(718, 924, 390, 554, floorMat); // Room 4
-addFloorRect(76, 924, 300, 390, floorMat);  // Hallway
-
-// Walls
-const addWall = (x1, x2, y1, y2, h = WALL_H) => {
-  const w = Math.abs(x2 - x1) * S, d = Math.abs(y2 - y1) * S;
-  const geo = new THREE.BoxGeometry(Math.max(w, 0.05), h, Math.max(d, 0.05));
-  const mesh = new THREE.Mesh(geo, wallMat);
-  const c = svgToWorld((x1 + x2) / 2, (y1 + y2) / 2);
-  mesh.position.set(c.x, h / 2, c.z);
-  scene.add(mesh);
-
-  const edgesGeo = new THREE.EdgesGeometry(geo);
-  const line = new THREE.LineSegments(edgesGeo, edgeMat);
-  line.position.copy(mesh.position);
-  scene.add(line);
-};
-
-const wallsSvg = [
-  [60, 940, 60, 76], [924, 940, 60, 570], [60, 400, 554, 570],
-  [460, 940, 554, 570], [60, 76, 60, 570],
-  [76, 160, 300, 314], [200, 350, 300, 314], [390, 580, 300, 314],
-  [620, 800, 300, 314], [840, 924, 300, 314],
-  [76, 260, 376, 390], [300, 490, 376, 390],
-  [620, 800, 376, 390], [840, 924, 376, 390],
-  [266, 280, 76, 300], [490, 504, 76, 300], [704, 718, 76, 300],
-  [490, 504, 390, 554], [704, 718, 390, 554],
-];
-wallsSvg.forEach(([x1, x2, y1, y2]) => addWall(x1, x2, y1, y2));
-
-// Gate perimeter
-const gateZ1 = (570 + 120) * S;
-const gateZ2 = gateZ1 + 0.3;
-const gateGapX1 = 360 * S, gateGapX2 = 640 * S;
-addWall(60, 360, 570+120, 570+124, 1.6);
-addWall(640, 940, 570+120, 570+124, 1.6);
-
-// ---------------------------------------------------------
-// Device Node Registry
-// ---------------------------------------------------------
-const deviceMeshes = [];
-const pointLights = {};
-const deviceStateCache = {};
-
-const createBulbNode = (id, x, y) => {
-  const pos = svgToWorld(x, y); pos.y = 2.2;
-  const geo = new THREE.SphereGeometry(0.08, 12, 12);
-  const mat = new THREE.MeshBasicMaterial({ color: 0x475569 });
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.position.copy(pos);
-  scene.add(mesh);
-
-  const edges = new THREE.EdgesGeometry(geo);
-  const outline = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x00d2ff }));
-  outline.position.copy(pos);
-  scene.add(outline);
-
-  const light = new THREE.PointLight(0xffa834, 0, 5, 2);
-  light.position.copy(pos);
-  scene.add(light);
-  pointLights[id] = light;
-
-  deviceMeshes.push({ id, mesh, type: 'light', mat, pos });
-  deviceStateCache[id] = 'off';
-};
-
-const createBoxNode = (id, x, y, size, colorHex) => {
-  const pos = svgToWorld(x, y); pos.y = size[1]/2;
-  const geo = new THREE.BoxGeometry(...size);
-  const mat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.5, transparent: true, opacity: 0.75 });
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.position.copy(pos);
-  scene.add(mesh);
-  const edges = new THREE.EdgesGeometry(geo);
-  const outline = new THREE.LineSegments(edges, edgeMat);
-  outline.position.copy(pos);
-  scene.add(outline);
-  deviceMeshes.push({ id, mesh, type: 'appliance', mat, pos });
-  deviceStateCache[id] = 'off';
-};
-
-// Populate
-createBulbNode('light_living_top_left', 150, 418.5);
-createBulbNode('light_living_top_right', 340, 418.5);
-createBulbNode('light_living_center', 280, 470.9);
-createBulbNode('light_living_bottom_left', 150, 522.8);
-createBulbNode('light_living_bottom_right', 340, 522.8);
-createBulbNode('light_kitchen', 385, 145.2);
-createBulbNode('light_room_1', 171, 185.4);
-createBulbNode('light_room_3', 604, 185.4);
-createBulbNode('light_room_2', 604, 470.9);
-createBulbNode('light_room_4', 821, 470.9);
-createBulbNode('light_gate', 280, 570+120);
-
-createBoxNode('fridge', 330, 109.8, [0.6, 1.6, 0.6], 0x1e3a8a);
-createBoxNode('tv', 220, 488, [1.0, 0.5, 0.08], 0x111827);
-createBoxNode('microwave', 330, 170.8, [0.45, 0.3, 0.35], 0x334155);
-createBoxNode('water_heater', 820, 109.8, [0.4, 0.8, 0.4], 0x64748b);
-
-// ---------------------------------------------------------
-// 3D Signal Pulses and Electrical Conduits (CAD Effect)
-// ---------------------------------------------------------
-const breakerPos = new THREE.Vector3(500 * S, 1.2, 300 * S); // central hallway breaker box
-const conduitLines = [];
-const pulses = []; // { curve, mesh, t, speed, onComplete }
-
-// Draw electrical conduit lines from breaker to every device
-deviceMeshes.forEach(dev => {
-  // Simple path: Breaker -> hallway corner -> device pos
-  const points = [];
-  points.push(breakerPos.clone());
-  
-  // Create a neat right-angle path on the ceiling/walls
-  const midPoint = new THREE.Vector3(dev.pos.x, 2.2, 300 * S);
-  points.push(midPoint);
-  points.push(new THREE.Vector3(dev.pos.x, 2.2, dev.pos.z));
-  points.push(dev.pos.clone());
-
-  const curve = new THREE.CatmullRomCurve3(points);
-  const pathGeo = new THREE.BufferGeometry().setFromPoints(curve.getPoints(20));
-  const lineMat = new THREE.LineBasicMaterial({ color: 0x00d2ff, transparent: true, opacity: 0.12 });
-  const conduit = new THREE.Line(pathGeo, lineMat);
-  scene.add(conduit);
-  conduitLines.push({ devId: dev.id, curve });
-});
-
-// Trigger a signal pulse animation along the conduit curve
-const triggerSignalPulse = (deviceId, colorHex = 0x00ffcc, onComplete = null) => {
-  const line = conduitLines.find(l => l.devId === deviceId);
-  if (!line) return;
-
-  const pulseGeo = new THREE.SphereGeometry(0.04, 8, 8);
-  const pulseMat = new THREE.MeshBasicMaterial({ color: colorHex });
-  const pulseMesh = new THREE.Mesh(pulseGeo, pulseMat);
-  scene.add(pulseMesh);
-
-  pulses.push({
-    curve: line.curve,
-    mesh: pulseMesh,
-    t: 0,
-    speed: 1.5, // completes in ~0.66s
-    onComplete
-  });
-};
-
-const updatePulses = (dt) => {
-  for (let i = pulses.length - 1; i >= 0; i--) {
-    const p = pulses[i];
-    p.t += dt * p.speed;
-    if (p.t >= 1) {
-      scene.remove(p.mesh);
-      p.mesh.geometry.dispose();
-      p.mesh.material.dispose();
-      if (p.onComplete) p.onComplete();
-      pulses.splice(i, 1);
-    } else {
-      const pos = p.curve.getPointAt(p.t);
-      p.mesh.position.copy(pos);
-    }
-  }
-};
-
-// ---------------------------------------------------------
-// Slide-by-slide Camera checkpoints
-// ---------------------------------------------------------
-const cameraCheckpoints = [
-  { // Slide 0: Hook / Overview
-    pos: new THREE.Vector3(14, 16, 20),
-    look: houseCenter.clone()
-  },
-  { // Slide 1: 19-Device plan
-    pos: new THREE.Vector3(houseCenter.x, 21, houseCenter.z + 0.1),
-    look: houseCenter.clone()
-  },
-  { // Slide 2: API Protocol (zoom to living room center)
-    pos: new THREE.Vector3(280 * S, 4.5, 470 * S + 6),
-    look: new THREE.Vector3(280 * S, 0.6, 470 * S)
-  },
-  { // Slide 3: Voice AI (Central circulation hallway)
-    pos: new THREE.Vector3(500 * S, 4.8, 345 * S + 6.5),
-    look: new THREE.Vector3(500 * S, 0.5, 345 * S)
-  },
-  { // Slide 4: prepaid engine (appliances - kitchen)
-    pos: new THREE.Vector3(385 * S - 4, 3.8, 145 * S + 3),
-    look: new THREE.Vector3(385 * S, 0.5, 145 * S)
-  },
-  { // Slide 5: Hardware relay (outdoor gate node)
-    pos: new THREE.Vector3(280 * S + 5, 2.5, (570+120) * S + 3),
-    look: new THREE.Vector3(280 * S, 0.8, (570+120) * S)
-  }
-];
-
-// ---------------------------------------------------------
-// Interactive Pitch slide state controllers
-// ---------------------------------------------------------
-window.currentMode = 'pitch';
-window.currentSlide = 0;
-
-const totalSlides = 6;
-
-window.setMode = (mode) => {
-  window.currentMode = mode;
-  document.getElementById('btn-mode-pitch').classList.toggle('active', mode === 'pitch');
-  document.getElementById('btn-mode-docs').classList.toggle('active', mode === 'docs');
-  
-  document.getElementById('content-pitch').classList.toggle('active', mode === 'pitch');
-  document.getElementById('content-docs').classList.toggle('active', mode === 'docs');
-
-  // Trigger correct camera positioning
-  if (mode === 'docs') {
-    // If documentation, bind camera position to scroll index
-    updateCameraFromScroll();
-  } else {
-    // If pitch slide deck, restore slide camera position
-    transitionToSlide(window.currentSlide);
-  }
-};
-
-window.changeSlide = (direction) => {
-  const nextSlide = window.currentSlide + direction;
-  if (nextSlide >= 0 && nextSlide < totalSlides) {
-    transitionToSlide(nextSlide);
-  }
-};
-
-window.goToSlideDirect = (slideIdx) => {
-  transitionToSlide(slideIdx);
-};
-
-const transitionToSlide = (idx) => {
-  window.currentSlide = idx;
-  
-  // Update slide UI active states
-  for (let i = 0; i < totalSlides; i++) {
-    document.getElementById(`slide-${i}`).classList.toggle('active', i === idx);
-  }
-
-  // Update dots UI
-  renderDots();
-
-  // Highlight/toggle button availability
-  document.getElementById('btn-slide-prev').style.opacity = idx === 0 ? '0.3' : '1';
-  document.getElementById('btn-slide-prev').style.pointerEvents = idx === 0 ? 'none' : 'auto';
-  document.getElementById('btn-slide-next').style.opacity = idx === totalSlides - 1 ? '0.3' : '1';
-  document.getElementById('btn-slide-next').style.pointerEvents = idx === totalSlides - 1 ? 'none' : 'auto';
-
-  // Specific slide visual triggers inside 3D environment
-  if (idx === 1) {
-    // Show dev registry: trigger signal pulses to all lights in quick sequence
-    deviceMeshes.forEach((dev, i) => {
-      setTimeout(() => {
-        triggerSignalPulse(dev.id, 0x00d2ff, () => {
-          // brief visual ping
-        });
-      }, i * 120);
-    });
-  }
-};
-
-const renderDots = () => {
-  const container = document.getElementById('dots-container');
-  container.innerHTML = '';
-  for (let i = 0; i < totalSlides; i++) {
-    const dot = document.createElement('div');
-    dot.className = `dot ${i === window.currentSlide ? 'active' : ''}`;
-    dot.onclick = () => goToSlideDirect(i);
-    container.appendChild(dot);
-  }
-};
-
-// ---------------------------------------------------------
-// Live preset animations & simulations
-// ---------------------------------------------------------
-
-// Preset sequence demo (Slide 2)
-window.runDemoCommandSequence = () => {
-  const sequence = [
-    'light_living_top_left',
-    'light_living_top_right',
-    'light_living_center',
-    'light_living_bottom_right',
-    'light_living_bottom_left'
-  ];
-
-  sequence.forEach((id, i) => {
-    setTimeout(() => {
-      triggerSignalPulse(id, 0xffaa00, () => {
-        toggleVisualLight(id, 'on');
-      });
-    }, i * 350);
-  });
-
-  // Automatically schedule turn-off sequence
-  setTimeout(() => {
-    sequence.forEach((id, i) => {
-      setTimeout(() => {
-        triggerSignalPulse(id, 0x00d2ff, () => {
-          toggleVisualLight(id, 'off');
-        });
-      }, i * 200);
-    });
-  }, 3000);
-};
-
-// Voice AI transcript simulation (Slide 3)
-window.simSpeech = (transcript) => {
-  const bubble = document.getElementById('sim-bubble');
-  const speechText = document.getElementById('sim-speech-text');
-  const speechReasoning = document.getElementById('sim-speech-reasoning');
-
-  speechText.textContent = `"${transcript}"`;
-  bubble.style.display = 'block';
-
-  let targets = [];
-  let action = 'off';
-
-  if (transcript.includes('Everyone left')) {
-    speechReasoning.textContent = "AI Reasoning: 'everyone left' implies turning off all continuous loads.";
-    targets = deviceMeshes.map(d => d.id);
-    action = 'off';
-  } else if (transcript.includes('Going to bed')) {
-    speechReasoning.textContent = "AI Reasoning: Turn off study light & lock gate main entrance.";
-    targets = ['light_room_2', 'light_gate'];
-    action = 'off';
-  } else if (transcript.includes('Open main gate')) {
-    speechReasoning.textContent = "AI Reasoning: Open gate_main & turn on light_gate.";
-    targets = ['light_gate'];
-    action = 'on';
-  }
-
-  // Trigger pulses from central cloud/breaker to target nodes
-  targets.forEach((id, i) => {
-    setTimeout(() => {
-      triggerSignalPulse(id, 0xff9900, () => {
-        toggleVisualLight(id, action);
-      });
-    }, i * 150);
-  });
-
-  // Hide bubble after 4 seconds
-  setTimeout(() => {
-    bubble.style.opacity = '0';
-    setTimeout(() => {
-      bubble.style.display = 'none';
-      bubble.style.opacity = '1';
-    }, 400);
-  }, 4000);
-};
-
-const toggleVisualLight = (id, state) => {
-  const isOn = state === 'on';
-  deviceStateCache[id] = state;
-  const dev = deviceMeshes.find(d => d.id === id);
-  if (dev) {
-    if (dev.type === 'light') {
-      pointLights[id].intensity = isOn ? 1.5 : 0;
-      dev.mat.color.setHex(isOn ? 0xffaa00 : 0x475569);
-    } else if (dev.type === 'appliance') {
-      dev.mat.emissive = new THREE.Color(isOn ? 0x00d2ff : 0x000000);
-      dev.mat.emissiveIntensity = isOn ? 0.6 : 0;
-    }
-  }
-};
-
-// ---------------------------------------------------------
-// Scroll-driven camera updates (Documentation Mode)
-// ---------------------------------------------------------
-const updateCameraFromScroll = () => {
-  const scrollTop = window.scrollY;
-  const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-  if (docHeight <= 0) return;
-
-  const scrollFraction = scrollTop / docHeight;
-  const numSegments = cameraCheckpoints.length - 1;
-  const scaledProgress = scrollFraction * numSegments;
-  const segmentIndex = Math.min(numSegments - 1, Math.floor(scaledProgress));
-  const segmentProgress = scaledProgress - segmentIndex;
-
-  const startCheck = cameraCheckpoints[segmentIndex];
-  const endCheck = cameraCheckpoints[segmentIndex + 1];
-
-  targetCamPos.lerpVectors(startCheck.pos, endCheck.pos, segmentProgress);
-  targetLookAt.lerpVectors(startCheck.look, endCheck.look, segmentProgress);
-};
-
-window.addEventListener('scroll', () => {
-  if (window.currentMode === 'docs') {
-    updateCameraFromScroll();
-  }
-});
-
-// ---------------------------------------------------------
-// Sync telemetry with real server (if active)
-// ---------------------------------------------------------
-const syncTelemetry = async () => {
-  try {
-    const resState = await fetch('/state');
-    const stateData = await resState.json();
-
-    const resEnergy = await fetch('/energy');
-    const energyData = await resEnergy.json();
-
-    // Update left-side HUD UI
-    document.querySelectorAll('.hud-bar').forEach(bar => {
-      const activePct = Math.min(100, (energyData.balance_kwh / 10) * 100);
-      bar.style.width = activePct + '%';
-    });
-    
-    document.getElementById('hud-watts').textContent = energyData.current_watts + ' W';
-    document.getElementById('hud-balance').textContent = energyData.balance_kwh.toFixed(4) + ' kWh';
-    
-    if (document.getElementById('doc-balance')) {
-      document.getElementById('doc-balance').textContent = energyData.balance_kwh.toFixed(4) + ' kWh';
-      document.getElementById('doc-watts').textContent = energyData.current_watts + ' W';
-    }
-
-    // Sync physical nodes with server states
-    deviceMeshes.forEach(dev => {
-      const live = stateData.devices[dev.id];
-      if (live) {
-        toggleVisualLight(dev.id, live.state);
-      }
-    });
-
-    const activeDeviceNames = Object.entries(stateData.devices)
-      .filter(([id, d]) => d.state === 'on')
-      .map(([id, d]) => d.label.split(' ')[0]);
-    
-    document.getElementById('cad-target').textContent = activeDeviceNames.length > 0 
-      ? activeDeviceNames.slice(0, 2).join(', ').toUpperCase() 
-      : 'OVERVIEW';
-    document.getElementById('cad-watts').textContent = energyData.current_watts + ' W';
-  } catch (err) {
-    // Mock local telemetry details if offline
-    let activeWatts = 0;
-    Object.entries(deviceStateCache).forEach(([id, state]) => {
-      if (state === 'on') activeWatts += (id.includes('living') ? 12 : 10);
-    });
-    document.getElementById('cad-watts').textContent = activeWatts + ' W';
-    document.getElementById('hud-watts').textContent = activeWatts + ' W';
-  }
-};
-
-setInterval(syncTelemetry, 1500);
-syncTelemetry();
-
-// ---------------------------------------------------------
-// Main Render Loop
-// ---------------------------------------------------------
-const targetCamPos = camera.position.clone();
-const targetLookAt = orbit.target.clone();
-
-const clock = new THREE.Clock();
-
-const animate = () => {
-  requestAnimationFrame(animate);
-
-  const dt = clock.getDelta();
-  updatePulses(dt);
-
-  // If in slide deck mode and not being dragged, lerp camera
-  if (window.currentMode === 'pitch') {
-    const check = cameraCheckpoints[window.currentSlide];
-    targetCamPos.copy(check.pos);
-    targetLookAt.copy(check.look);
-  }
-
-  // Smooth camera and orbit transition
-  if (orbit.state === -1) {
-    camera.position.lerp(targetCamPos, 0.08);
-    orbit.target.lerp(targetLookAt, 0.08);
-  }
-
-  // Slow overview rotate on first slide
-  if (window.currentMode === 'pitch' && window.currentSlide === 0 && orbit.state === -1) {
-    const elapsed = clock.getElapsedTime() * 0.06;
-    targetCamPos.x = 14 * Math.cos(elapsed) - 4 * Math.sin(elapsed);
-    targetCamPos.z = 14 * Math.sin(elapsed) + 20 * Math.cos(elapsed);
-  }
-
-  // Update CAD coords HUD
-  document.getElementById('cad-coords').textContent = `[X: ${camera.position.x.toFixed(1)}, Z: ${camera.position.z.toFixed(1)}]`;
-  document.getElementById('cad-mode').textContent = orbit.state === -1 ? 'PERSPECTIVE' : 'ORBIT';
-
-  orbit.update();
-  renderer.render(scene, camera);
-};
-
-// Window sizing
-window.addEventListener('resize', () => {
-  camera.aspect = canvas.clientWidth / canvas.clientHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(canvas.clientWidth, canvas.clientHeight);
-});
-
-// Initialize pitch slider dots
-renderDots();
-transitionToSlide(0);
-
-animate();
-
-</script>
-</body>
-</html>
+</body></html>
