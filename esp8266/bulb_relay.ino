@@ -64,7 +64,10 @@ void handleCommand() {
     return;
   }
 
-  Serial.printf("Command received: %s -> %s\n", device, action);
+  // forward the command to an attached Arduino (if wired to ESP TX/RX)
+  // simple line format: device,action\n  Serial.printf("Command received: %s -> %s\n", device, action);
+  String forward = String(device) + "," + String(action) + "\n";
+  Serial.print(forward);
   server.send(200, "application/json", "{\"ok\":true}");
 }
 
@@ -75,6 +78,11 @@ void handleStatus() {
 
 void setup() {
   Serial.begin(115200);
+  // If an Arduino is connected directly to the ESP's TX/RX pins, it will
+  // receive forwarded commands on the same Serial line. Wire ESP TX ->
+  // Arduino RX, and ESP RX -> Arduino TX (crossed). Use a common GND.
+  // The Arduino sketch should listen on Serial and parse lines like
+  // "bulb_living_room,on" to actuate local pins.
   pinMode(RELAY_PIN, OUTPUT);
   digitalWrite(RELAY_PIN, LOW);
 
@@ -96,4 +104,15 @@ void setup() {
 
 void loop() {
   server.handleClient();
+
+  // relay any serial input from the Arduino to the USB serial monitor
+  // (optional debugging) and process simple replies if needed.
+  while (Serial.available()) {
+    String line = Serial.readStringUntil('\n');
+    line.trim();
+    if (line.length() == 0) continue;
+    // echo Arduino messages to monitor
+    Serial.printf("From Arduino: %s\n", line.c_str());
+    // optionally parse lines here to update internal state
+  }
 }

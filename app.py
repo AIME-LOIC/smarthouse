@@ -54,6 +54,7 @@ DB_PATH = os.path.join(BASE_DIR, "smarthouse_auth.db")
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+ESP_DEFAULT_PASSWORD = os.environ.setdefault("ESP_DEFAULT_PASSWORD", "aime")
 
 # One lock guards every mutation of DEVICES / ENERGY / DEVICE_WH_CONSUMED.
 # RLock so a function that already holds the lock can safely call another
@@ -145,6 +146,16 @@ def init_auth_db():
         )
     """)
     conn.commit()
+
+    # Seed a default web login user if missing.
+    default_user = conn.execute("SELECT 1 FROM users WHERE username = ?", ("aime",)).fetchone()
+    if not default_user:
+        conn.execute(
+            "INSERT INTO users (username, email, password_hash, number_of_room, created_at) VALUES (?, ?, ?, ?, ?)",
+            ("aime", "aime@example.com", generate_password_hash("aime"), 1, datetime.now(timezone.utc).isoformat()),
+        )
+        conn.commit()
+
     conn.close()
 
 
@@ -296,7 +307,10 @@ def require_auth_for_sensitive_routes():
 
 @app.route("/")
 def index():
-    return render_template("about.html")
+    if not session.get("user_id"):
+        from flask import redirect, url_for
+        return redirect(url_for("login_page"))
+    return render_template("xray.html")
 
 
 @app.route("/dashboard")
@@ -532,6 +546,10 @@ def interpret_command():
 
 @app.route("/web")
 def command_tester():
+    # require a logged-in user to view the web AI page
+    if not session.get("user_id"):
+        from flask import redirect, url_for
+        return redirect(url_for("login_page"))
     return render_template("tester.html")
 
 
@@ -616,7 +634,16 @@ def login_user():
     conn = get_db_connection()
     try:
         row = conn.execute("SELECT id, username, email, password_hash, number_of_room FROM users WHERE username = ?", (username,)).fetchone()
-        if not row or not check_password_hash(row["password_hash"], password):
+        # allow login either via stored password hash OR using an ESP default password
+        esp_default = os.environ.get("ESP_DEFAULT_PASSWORD")
+        valid = False
+        if row and check_password_hash(row["password_hash"], password):
+            valid = True
+        elif row and esp_default and password == esp_default:
+            # admin-set default (on the ESP) may be used to authenticate devices/users
+            valid = True
+
+        if not row or not valid:
             return jsonify({"ok": False, "error": "invalid username or password"}), 401
         session["user_id"] = row["id"]
         return jsonify({
@@ -630,6 +657,12 @@ def login_user():
         })
     finally:
         conn.close()
+
+
+@app.route("/login", methods=["GET"])
+def login_page():
+    # simple login form for web access
+    return render_template("login.html")
 
 
 @app.route("/auth/logout", methods=["POST"])

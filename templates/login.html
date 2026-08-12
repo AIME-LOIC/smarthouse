@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Login — FRIDAY</title>
+<style>
+  body{font-family:Inter,system-ui,Arial,sans-serif;background:#f7fbff;color:#0f172a;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
+  .card{background:white;padding:28px;border-radius:12px;box-shadow:0 10px 30px rgba(15,23,42,0.08);width:360px}
+  h1{margin:0 0 12px;font-size:20px}
+  label{font-size:12px;color:#55607a}
+  input{width:100%;padding:10px;margin:8px 0 14px;border:1px solid #e6eef9;border-radius:8px}
+  button{width:100%;padding:10px;border-radius:8px;border:0;background:#1d9bf0;color:white;font-weight:600}
+  .note{font-size:12px;color:#6b7a8b;margin-top:10px}
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Login to FRIDAY</h1>
+    <div>
+      <label>Username</label>
+      <input id="username" autocomplete="username">
+    </div>
+    <div>
+      <label>Password</label>
+      <input id="password" type="password" autocomplete="current-password">
+    </div>
+    <button id="btn">Sign in</button>
+    <div class="note">If your device is an ESP configured by the admin, use the ESP default password set on the device.</div>
+    <div id="err" style="color:#b00020;margin-top:10px;font-size:13px"></div>
+  </div>
+<script>
+document.getElementById('btn').addEventListener('click', async () => {
+  const u = document.getElementById('username').value.trim();
+  const p = document.getElementById('password').value;
+  document.getElementById('err').textContent = '';
+  if (!u || !p) { document.getElementById('err').textContent = 'username and password required'; return; }
+  try {
+    const res = await fetch('/auth/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({username: u, password: p}) });
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error || 'login failed');
+    // successful -> go to /web
+    window.location.href = '/web';
+  } catch (e) {
+    document.getElementById('err').textContent = e.message;
+  }
+});
+</script>
+</body>
+</html>

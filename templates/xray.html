@@ -169,6 +169,57 @@
       pointer-events: auto;
     }
 
+    /* ---------- 3D companion panel: small, floats beside the story text, opposite side, hero-themed ---------- */
+    .story-3d-panel {
+      position: fixed;
+      width: min(32vw, 400px);
+      border-radius: 1.5rem;
+      overflow: hidden;
+      background: rgba(10, 15, 40, 0.55);
+      border: 1px solid rgba(124, 156, 255, 0.22);
+      box-shadow: 0 20px 60px rgba(3, 6, 20, 0.55), 0 0 40px rgba(79, 114, 255, 0.18), inset 0 0 0 1px rgba(255,255,255,0.03);
+      backdrop-filter: blur(10px);
+      z-index: 30;
+      opacity: 0;
+      pointer-events: none;
+      transition: left .55s cubic-bezier(.22,.9,.32,1), right .55s cubic-bezier(.22,.9,.32,1),
+                  top .45s ease, height .45s ease, opacity .5s ease;
+    }
+    .story-3d-panel.is-visible { opacity: 1; }
+    .story-3d-panel::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: inherit;
+      padding: 1px;
+      background: linear-gradient(135deg, rgba(79,114,255,0.55), rgba(162,89,255,0.35), transparent 60%);
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+      z-index: 2;
+    }
+    .story-3d-panel-inner { width: 100%; height: 100%; position: relative; z-index: 1; }
+    .story-3d-frame { width: 100%; height: 100%; display: block; border: 0; background: #060a1a; }
+    .story-3d-tag {
+      position: absolute;
+      top: 12px;
+      left: 14px;
+      z-index: 3;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #A7B8FF;
+      background: rgba(4, 8, 20, 0.55);
+      padding: 4px 9px;
+      border-radius: 999px;
+      border: 1px solid rgba(124,156,255,0.25);
+    }
+    @media (max-width: 1023px) {
+      .story-3d-panel { display: none; }
+    }
+
     /* ---------- narrative sections (about content, matched to dark glass theme) ---------- */
     .story-beat { min-height: 100vh; display: flex; align-items: center; padding: 6vh 8vw; }
     .story-beat .copy { max-width: 520px; opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s ease; }
@@ -296,10 +347,10 @@
 <a class="hover:text-white transition-colors" href="#">About</a>
 <a class="hover:text-white transition-colors" href="#">Contact</a>
 </nav>
-<div class="flex items-center gap-4">
-<button class="btn-secondary px-6 py-2 rounded-full text-sm font-medium">Login</button>
-<button class="btn-primary px-6 py-2 rounded-full text-sm font-medium">Get Started</button>
-</div>
+  <div class="flex items-center gap-4">
+  <a href="/login" class="btn-secondary px-6 py-2 rounded-full text-sm font-medium" role="button">Login</a>
+  <a href="/login" class="btn-primary px-6 py-2 rounded-full text-sm font-medium" role="button">Get Started</a>
+  </div>
 </header>
 <!-- END: Navigation -->
 <!-- BEGIN: Main Hero Section -->
@@ -316,11 +367,11 @@
         Control your smart home, monitor electricity, view blueprints and interact naturally with AI.
       </p>
 <div class="flex flex-wrap items-center gap-4 mb-6">
-<button class="btn-primary px-6 py-3 rounded-full font-semibold flex items-center gap-2">
+<a href="/login" class="btn-primary px-6 py-3 rounded-full font-semibold flex items-center gap-2" role="button">
           Get Started
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
-</button>
-<button class="btn-secondary px-6 py-3 rounded-full font-semibold flex items-center gap-2 text-gray-300 hover:text-white">
+</a>
+<button class="btn-secondary px-6 py-3 rounded-full font-semibold flex items-center gap-2 text-gray-300 hover:text-white" onclick="document.getElementById('story').scrollIntoView({ behavior: 'smooth' })">
           Watch Demo
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
 </button>
@@ -453,6 +504,15 @@
 <!-- END: Bottom UI Overlay -->
 </div>
 <!-- END: hero-screen (locked to 100vh) -->
+
+<!-- BEGIN: 3D companion panel — fixed, tracks the active story beat, swaps to the side opposite the text -->
+<div class="story-3d-panel" id="story3dPanel" aria-hidden="true">
+<span class="story-3d-tag">Live digital twin</span>
+<div class="story-3d-panel-inner">
+<iframe class="story-3d-frame" id="home-3d-frame" src="/showcase?embed=1" title="3D Smart House Scroll Animation" loading="lazy"></iframe>
+</div>
+</div>
+<!-- END: 3D companion panel -->
 
 <!-- BEGIN: Story sections (content from about.html, matched to dark glass theme) -->
 <main id="story">
@@ -627,5 +687,83 @@ function updateBeats() {
 }
 window.addEventListener('scroll', updateBeats, { passive: true });
 updateBeats();
+
+/* ---- 3D companion panel: small, sits opposite the active beat's text, sized to match it ---- */
+const storyRoot = document.getElementById('story');
+const panel = document.getElementById('story3dPanel');
+const home3dFrame = document.getElementById('home-3d-frame');
+const storyBeatEls = Array.from(document.querySelectorAll('.story-beat'));
+const EDGE_GAP = '6vw';
+const TOP_MARGIN = 96;   // keep clear of the fixed nav
+const BOTTOM_MARGIN = 40;
+
+function isDesktopLayout() {
+  return window.innerWidth >= 1024;
+}
+
+function updateStoryPanel() {
+  if (!storyRoot || !panel) return;
+  if (!isDesktopLayout()) {
+    panel.classList.remove('is-visible');
+    return;
+  }
+
+  const vh = window.innerHeight;
+  const storyRect = storyRoot.getBoundingClientRect();
+  const inView = storyRect.top < vh && storyRect.bottom > 0;
+  panel.classList.toggle('is-visible', inView);
+  if (!inView) return;
+
+  // find whichever beat's copy block is closest to viewport center right now
+  let active = null;
+  let closest = Infinity;
+  storyBeatEls.forEach(beat => {
+    const copy = beat.querySelector('.copy');
+    if (!copy) return;
+    const r = copy.getBoundingClientRect();
+    const dist = Math.abs((r.top + r.height / 2) - vh / 2);
+    if (dist < closest) {
+      closest = dist;
+      active = { beat, rect: r };
+    }
+  });
+  if (!active) return;
+
+  const textIsRight = active.beat.classList.contains('right');
+
+  // panel goes on the opposite side from the text
+  if (textIsRight) {
+    panel.style.left = EDGE_GAP;
+    panel.style.right = 'auto';
+  } else {
+    panel.style.right = EDGE_GAP;
+    panel.style.left = 'auto';
+  }
+
+  // size/position the panel to match the current text block's height
+  let height = Math.max(220, Math.min(active.rect.height, vh - TOP_MARGIN - BOTTOM_MARGIN));
+  let top = active.rect.top + (active.rect.height - height) / 2;
+  top = Math.max(TOP_MARGIN, Math.min(top, vh - height - BOTTOM_MARGIN));
+
+  panel.style.top = top + 'px';
+  panel.style.height = height + 'px';
+}
+
+function updateStoryProgress() {
+  if (!storyRoot || !home3dFrame || !home3dFrame.contentWindow) return;
+  const total = storyRoot.offsetHeight - window.innerHeight;
+  const scrolled = window.scrollY - (storyRoot.offsetTop || 0);
+  const progress = total > 0 ? Math.min(1, Math.max(0, scrolled / total)) : 0;
+  home3dFrame.contentWindow.postMessage({ type: 'friday-3d-progress', progress }, window.location.origin);
+}
+
+function onStoryScrollOrResize() {
+  updateStoryPanel();
+  updateStoryProgress();
+}
+window.addEventListener('scroll', onStoryScrollOrResize, { passive: true });
+window.addEventListener('resize', onStoryScrollOrResize);
+home3dFrame?.addEventListener('load', onStoryScrollOrResize);
+onStoryScrollOrResize();
 </script>
 </body></html>

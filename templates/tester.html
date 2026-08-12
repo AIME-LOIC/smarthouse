@@ -2,703 +2,899 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart House — Switch Tester</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>FRIDAY — Home Assistant</title>
 <style>
   :root {
-    --bg: #0b0f0c;
-    --panel: #121914;
-    --panel-border: #1e2b22;
-    --text: #e1e7e2;
-    --text-dim: #708276;
-    --live: #ffa834;
-    --on: #00ff88;
-    --on-glow: rgba(0, 255, 136, 0.45);
-    --valve-on: #38bdf8;
-    --valve-glow: rgba(56, 189, 248, 0.45);
+    --bg: #030614;
+    --panel: rgba(10, 15, 40, 0.55);
+    --panel-solid: #0a0f28;
+    --panel-border: rgba(255, 255, 255, 0.08);
+    --panel-border-hover: rgba(124, 156, 255, 0.4);
+    --text: #E4E8F5;
+    --text-dim: #9AA5C0;
+    --text-mute: #6B7593;
+    --accent-1: #4F72FF;
+    --accent-2: #A259FF;
+    --accent-soft: #7C9CFF;
+    --accent-grad: linear-gradient(90deg, #4F72FF 0%, #A259FF 100%);
+    --warn: #FFB74A;
+    --danger: #FF5A6E;
     --mono: 'JetBrains Mono', 'Courier New', monospace;
-    --sans: 'Segoe UI', system-ui, sans-serif;
+    --sans: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    --radius: 16px;
   }
   * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    background: radial-gradient(circle at 50% 0%, #142218 0%, var(--bg) 70%);
+  html, body {
+    margin: 0; height: 100%; width: 100%;
+    background: var(--bg);
     color: var(--text);
     font-family: var(--sans);
-    min-height: 100vh;
-    padding: 20px;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
   }
-  header {
-    max-width: 1300px; margin: 0 auto 16px;
-    display: flex; justify-content: space-between; align-items: center;
-    border-bottom: 1px solid var(--panel-border); padding-bottom: 12px;
-    flex-wrap: wrap; gap: 10px;
+  body {
+    background:
+      radial-gradient(circle at 88% 6%, rgba(79, 114, 255, 0.16) 0%, rgba(0,0,0,0) 45%),
+      radial-gradient(circle at 6% 92%, rgba(162, 89, 255, 0.10) 0%, rgba(0,0,0,0) 45%),
+      var(--bg);
   }
-  h1 { font-family: var(--mono); font-size: 18px; letter-spacing: 0.5px; margin: 0; }
-  h1 span { color: var(--text-dim); font-weight: 400; }
-  nav a {
-    font-family: var(--mono); font-size: 11px; color: var(--text-dim);
-    text-decoration: none; border: 1px solid var(--panel-border);
-    padding: 4px 10px; border-radius: 4px;
-  }
-  nav a:hover { color: var(--on); border-color: #28543a; }
-  .hint { font-family: var(--mono); font-size: 10px; color: var(--text-dim); }
+  button { font-family: inherit; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-thumb { background: rgba(124,156,255,0.25); border-radius: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
 
-  main {
-    max-width: 1300px; margin: 0 auto;
-    display: grid; grid-template-columns: 3.2fr 1fr; gap: 20px;
-  }
-  @media (max-width: 1024px) { main { grid-template-columns: 1fr; } }
+  /* ============ APP SHELL ============ */
+  .app { display: flex; height: 100vh; width: 100vw; position: relative; }
 
-  .blueprint-card {
-    background: #fdfdfd; border: 2px solid var(--panel-border);
-    border-radius: 8px; padding: 16px; position: relative;
-    box-shadow: 0 12px 32px rgba(0,0,0,0.6);
+  /* ============ SIDEBAR ============ */
+  .sidebar {
+    width: 12%; min-width: 110px; max-width: 170px;
+    display: flex; flex-direction: column;
+    border-right: 1px solid var(--panel-border);
+    background: rgba(8, 12, 32, 0.75);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    z-index: 20;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .sidebar.collapsed {
+    margin-left: -170px;
+    pointer-events: none;
+  }
+  .sidebar-brand {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 12px 14px; flex-shrink: 0;
+  }
+  .sidebar-brand .mark {
+    width: 34px; height: 34px; border-radius: 10px;
+    background: var(--accent-grad);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px; color: #fff;
+    box-shadow: 0 0 18px rgba(79,114,255,0.35);
+  }
+  .sidebar-hide-btn {
+    background: rgba(255,255,255,0.05); border: 1px solid var(--panel-border);
+    color: var(--text-dim); border-radius: 8px; width: 28px; height: 28px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; transition: all 0.2s ease;
+  }
+  .sidebar-hide-btn:hover { color: #fff; border-color: var(--panel-border-hover); background: rgba(124,156,255,0.15); }
+
+  .sidebar-section-label {
+    font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--text-mute);
+    text-align: center; padding: 4px 6px 10px;
+  }
+
+  .device-list {
+    flex: 1; overflow-y: auto; display: flex; flex-direction: column;
+    gap: 8px; padding: 0 8px;
+  }
+  .device-chip {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 12px 4px; border-radius: 12px;
+    border: 1px solid var(--panel-border);
+    background: rgba(255,255,255,0.02);
+    cursor: pointer; transition: all 0.18s ease;
+    position: relative;
+  }
+  .device-chip:hover { border-color: var(--panel-border-hover); background: rgba(124,156,255,0.06); }
+  .device-chip.active {
+    border-color: var(--accent-soft);
+    background: linear-gradient(160deg, rgba(79,114,255,0.18), rgba(162,89,255,0.08));
+    box-shadow: 0 0 14px rgba(79,114,255,0.25);
+  }
+  .device-chip .icon { font-size: 18px; line-height: 1; filter: grayscale(0.3); opacity: 0.75; }
+  .device-chip.active .icon { opacity: 1; filter: none; }
+  .device-chip .name {
+    font-size: 9px; font-family: var(--mono); color: var(--text-mute);
+    text-align: center; letter-spacing: 0.3px; line-height: 1.2;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;
+  }
+  .device-chip.active .name { color: var(--accent-soft); }
+  .device-chip .dot {
+    position: absolute; top: 6px; right: 6px; width: 6px; height: 6px;
+    border-radius: 50%; background: var(--text-mute); opacity: 0.5;
+  }
+  .device-chip.active .dot { background: var(--accent-soft); box-shadow: 0 0 6px var(--accent-soft); opacity: 1; }
+
+  .sidebar-bottom {
+    flex-shrink: 0; padding: 10px 8px 12px; border-top: 1px solid var(--panel-border);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .topup-box { display: flex; flex-direction: column; gap: 6px; }
+  .topup-box input {
+    width: 100%; padding: 8px 6px; background: rgba(0,0,0,0.25);
+    border: 1px solid var(--panel-border); color: var(--text);
+    border-radius: 8px; font-family: var(--mono); font-size: 10px; text-align: center;
+  }
+  .topup-box input::placeholder { color: var(--text-mute); }
+  .topup-box button {
+    width: 100%; background: var(--accent-grad); color: #fff; border: none;
+    padding: 8px 4px; border-radius: 8px; cursor: pointer;
+    font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: 0.4px;
+  }
+  .topup-box button:hover { filter: brightness(1.1); }
+
+  .profile-btn {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border);
+    border-radius: 12px; padding: 6px; cursor: pointer; color: var(--text);
+    transition: border-color 0.18s ease;
+  }
+  .profile-btn:hover { border-color: var(--panel-border-hover); }
+  .profile-avatar {
+    width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+    background: var(--accent-grad); display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; color: #fff; overflow: hidden;
+  }
+  .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .profile-name {
+    font-size: 9.5px; font-family: var(--mono); color: var(--text-dim);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;
+  }
+
+  /* ============ MAIN / CHAT ============ */
+  .chat-main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; }
+
+  /* Floating Sidebar Toggle Button (Shown when sidebar is hidden) */
+  .sidebar-show-btn {
+    position: absolute; top: 16px; left: 16px; z-index: 18;
+    width: 36px; height: 36px; border-radius: 10px;
+    background: var(--panel); border: 1px solid var(--panel-border);
+    color: var(--text); cursor: pointer; display: none;
+    align-items: center; justify-content: center; font-size: 16px;
+    backdrop-filter: blur(12px); box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    transition: all 0.2s ease;
+  }
+  .sidebar-show-btn:hover { border-color: var(--panel-border-hover); color: var(--accent-soft); }
+  .sidebar.collapsed ~ .chat-main .sidebar-show-btn { display: flex; }
+
+  /* ---- cash power monitor ---- */
+  .cashpower-monitor {
+    position: absolute; top: 16px; right: 16px; z-index: 15;
+    width: 208px; padding: 12px 14px; border-radius: 14px;
+    background: var(--panel); border: 1px solid var(--panel-border);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+  }
+  .cashpower-monitor .cp-head {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;
+  }
+  .cashpower-monitor .cp-title {
+    font-family: var(--mono); font-size: 9.5px; letter-spacing: 1.2px;
+    text-transform: uppercase; color: var(--text-mute); display: flex; align-items: center; gap: 5px;
+  }
+  .cp-live-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent-soft); box-shadow: 0 0 6px var(--accent-soft); }
+  .cashpower-monitor .cp-balance { font-family: var(--mono); font-size: 17px; font-weight: 700; color: var(--text); }
+  .cashpower-monitor .cp-balance.warn { color: var(--warn); }
+  .cashpower-monitor .cp-balance.dead { color: var(--danger); }
+  .cashpower-monitor .cp-sub { font-family: var(--mono); font-size: 9.5px; color: var(--text-mute); margin-top: 2px; }
+  .cp-bar-wrap { margin-top: 8px; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.06); overflow: hidden; }
+  .cp-bar { height: 100%; background: var(--accent-grad); border-radius: 3px; width: 0%; transition: width 0.8s ease; }
+  .cp-bar.warn { background: var(--warn); }
+  .cp-bar.dead { background: var(--danger); }
+  @media (max-width: 720px) { .cashpower-monitor { width: 148px; padding: 10px; top: 10px; right: 10px; } .cashpower-monitor .cp-balance { font-size: 14px; } }
+
+  /* ---- chat messages ---- */
+  .chat-messages {
+    flex: 1; overflow-y: auto; padding: 82px 12% 18px;
     display: flex; flex-direction: column; gap: 16px;
   }
+  @media (max-width: 900px) { .chat-messages { padding: 78px 4% 14px; } }
 
-  .zone-box {
-    position: relative; width: 100%;
-    background-color: #f7f9f8;
-    background-image:
-      linear-gradient(to right, rgba(0,0,0,0.04) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(0,0,0,0.04) 1px, transparent 1px);
-    background-size: 20px 20px;
-    border: 2px dashed #a0aab0; border-radius: 6px;
-    padding: 8px;
+  .chat-empty {
+    margin: auto; text-align: center; color: var(--text-mute); max-width: 360px;
   }
-  .zone-label {
-    position: absolute; top: 10px; left: 12px;
-    font-family: var(--mono); font-size: 10px; font-weight: 700;
-    color: #556066; letter-spacing: 1px; text-transform: uppercase;
-    background: rgba(255,255,255,0.85); padding: 2px 6px; border-radius: 3px;
-    z-index: 5; border: 1px solid #ccd2d6;
+  .chat-empty .glyph {
+    width: 48px; height: 48px; border-radius: 14px; margin: 0 auto 16px;
+    background: var(--accent-grad); display: flex; align-items: center; justify-content: center;
+    font-size: 20px; box-shadow: 0 0 24px rgba(79,114,255,0.35);
   }
+  .chat-empty h2 { font-size: 16px; color: var(--text); margin: 0 0 6px; font-weight: 600; }
+  .chat-empty p { font-size: 13px; line-height: 1.6; margin: 0; }
 
-  svg.cad-plan { width: 100%; height: auto; display: block; }
-
-  .wall { fill: #1a1a1a; }
-  .wall-cut { fill: #fdfdfd; }
-  .window { fill: #aee2f3; stroke: #1a1a1a; stroke-width: 1; }
-  .door-arc { fill: none; stroke: #888; stroke-width: 1; stroke-dasharray: 2,2; }
-  .door-leaf { stroke: #222; stroke-width: 2.5; stroke-linecap: round; }
-  .gate-bars { stroke: #d94040; stroke-width: 3; stroke-dasharray: 5,3; }
-  .room-text { font-family: var(--mono); font-size: 12px; fill: #444; font-weight: 700; letter-spacing: 0.4px; }
-  .dim-text { font-family: var(--mono); font-size: 9px; fill: #999; }
-  .hallway-text { font-family: var(--mono); font-size: 10px; fill: #bbb; letter-spacing: 2px; }
-  .hallway-sub { font-family: var(--mono); font-size: 9px; fill: #9fb8ac; letter-spacing: 1px; }
-  .furniture { fill: none; stroke: #b5b5b5; stroke-width: 1; }
-  .hallway-fill { fill: #eef1ef; }
-
-  /* clickable switch nodes */
-  .device-node { position: absolute; transform: translate(-50%, -50%); z-index: 10; cursor: pointer; }
-  .light-node {
-    width: 28px; height: 28px; border-radius: 50%;
-    background: #333; border: 2px solid #111;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 12px; color: #666;
-    transition: all 0.2s ease;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  .msg { display: flex; gap: 10px; max-width: 78%; animation: rise 0.25s ease; }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+  .msg .avatar {
+    width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; margin-top: 2px;
+    display: flex; align-items: center; justify-content: center; font-size: 12px;
   }
-  .light-node:hover { border-color: #666; transform: scale(1.08); }
-  .light-node.active {
-    background: var(--on); border-color: #fff; color: #000;
-    box-shadow: 0 0 14px var(--on-glow), 0 0 26px var(--on-glow);
+  .msg.ai .avatar { background: var(--accent-grad); color: #fff; }
+  .msg.user .avatar { background: rgba(255,255,255,0.08); border: 1px solid var(--panel-border); }
+  .bubble {
+    padding: 11px 14px; border-radius: var(--radius); font-size: 13.5px; line-height: 1.55;
+    border: 1px solid var(--panel-border);
   }
-  .light-node.pending { opacity: 0.5; }
+  .msg.ai .bubble { background: var(--panel); backdrop-filter: blur(16px); border-top-left-radius: 4px; color: var(--text); }
+  .msg.user .bubble { background: linear-gradient(135deg, rgba(79,114,255,0.28), rgba(162,89,255,0.18)); border-top-right-radius: 4px; color: #fff; }
+  .msg.thinking .bubble { display: flex; gap: 4px; align-items: center; padding: 13px 16px; }
+  .think-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent-soft); animation: think 1.1s infinite ease-in-out; }
+  .think-dot:nth-child(2) { animation-delay: 0.15s; } .think-dot:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes think { 0%, 60%, 100% { opacity: 0.25; transform: scale(0.8); } 30% { opacity: 1; transform: scale(1.1); } }
 
-  .tag {
-    position: absolute; transform: translate(-50%, -50%);
-    font-family: var(--mono); font-size: 9px; font-weight: 600;
-    padding: 4px 8px; background: rgba(15,20,16,0.92); color: #aaa;
-    border: 1px solid #333; border-radius: 4px; white-space: nowrap;
-    z-index: 10; cursor: pointer; transition: all 0.2s ease;
-  }
-  .tag:hover { border-color: #666; transform: translate(-50%, -50%) scale(1.06); }
-  .tag.door.active { background: #0f2b1c; color: var(--on); border-color: var(--on); box-shadow: 0 0 10px rgba(0,255,136,0.3); }
-  .tag.gate.active { background: #3b1e10; color: var(--live); border-color: var(--live); box-shadow: 0 0 10px rgba(255,168,52,0.3); }
-  .tag.valve.active { background: #0f2330; color: var(--valve-on); border-color: var(--valve-on); box-shadow: 0 0 10px var(--valve-glow); }
-  .tag.pending { opacity: 0.5; }
-
-  .side-panel { display: flex; flex-direction: column; gap: 16px; }
-  .panel-block {
+  /* ---- input row ---- */
+  .chat-input-bar { flex-shrink: 0; padding: 12px 12% 20px; }
+  @media (max-width: 900px) { .chat-input-bar { padding: 10px 4% 16px; } }
+  .chat-input-row {
+    display: flex; align-items: center; gap: 8px;
     background: var(--panel); border: 1px solid var(--panel-border);
-    border-radius: 8px; padding: 16px;
+    border-radius: 20px; padding: 6px;
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35);
   }
-  .panel-block h2 {
-    font-family: var(--mono); font-size: 11px; text-transform: uppercase;
-    letter-spacing: 1.5px; color: var(--text-dim); margin: 0 0 12px;
-  }
-  input[type=text] {
-    width: 100%; padding: 9px; background: #0a0f0b;
-    border: 1px solid var(--panel-border); color: var(--text);
-    border-radius: 4px; font-family: var(--mono); font-size: 12px;
-    margin-bottom: 8px;
-  }
-  button.send-btn {
-    width: 100%; background: #1c3324; color: var(--on);
-    border: 1px solid #2c5c42; padding: 9px; border-radius: 4px;
-    cursor: pointer; font-family: var(--mono); font-size: 12px;
-  }
-  button.send-btn:hover { background: #244430; }
-  #result {
-    font-family: var(--mono); font-size: 11px; background: #0a0f0b;
-    border: 1px solid var(--panel-border); border-radius: 6px;
-    padding: 10px; white-space: pre-wrap; min-height: 50px; color: var(--text-dim);
-  }
-  .log-panel { max-height: 420px; overflow-y: auto; }
-  .log-entry { font-family: var(--mono); font-size: 11px; padding: 7px 0; border-bottom: 1px solid var(--panel-border); color: var(--text-dim); }
-  .log-entry .t { color: var(--text); }
-  .log-entry .src { color: var(--live); }
+  .chat-input-row:focus-within { border-color: var(--panel-border-hover); }
 
-  /* socket buttons */
-  .socket-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 2px; }
-  .socket-btn {
-    background: #0f1a12; border: 1px solid var(--panel-border); color: var(--text-dim);
-    font-family: var(--mono); font-size: 10px; padding: 7px 4px; border-radius: 4px;
-    cursor: pointer; transition: all 0.15s; text-align: center;
+  .plus-wrap { position: relative; flex-shrink: 0; }
+  .plus-btn {
+    width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+    background: rgba(255,255,255,0.05); border: 1px solid var(--panel-border); color: var(--accent-soft);
+    cursor: pointer; font-size: 20px; line-height: 1; display: flex; align-items: center; justify-content: center;
+    transition: all 0.18s ease;
   }
-  .socket-btn:hover { border-color: #2c5c42; color: var(--text); }
-  .socket-btn.active { background: #0f2b1c; color: var(--on); border-color: var(--on); box-shadow: 0 0 8px var(--on-glow); }
-  .socket-btn.pending { opacity: 0.4; }
-  .selected-socket { border-color: var(--live) !important; box-shadow: 0 0 10px rgba(255,168,52,0.5) !important; }
+  .plus-btn:hover { border-color: var(--panel-border-hover); background: rgba(124,156,255,0.1); }
+  .plus-wrap.open .plus-btn { transform: rotate(45deg); background: var(--accent-grad); color: #fff; border-color: transparent; }
+  .view-popup {
+    position: absolute; left: 0; bottom: calc(100% + 10px);
+    display: none; min-width: 170px; padding: 8px;
+    background: var(--panel-solid); border: 1px solid var(--panel-border); border-radius: 12px;
+    box-shadow: 0 14px 34px rgba(0,0,0,0.5); z-index: 90;
+  }
+  .plus-wrap.open .view-popup { display: grid; gap: 5px; }
+  .view-popup button {
+    width: 100%; background: rgba(255,255,255,0.03); color: var(--text);
+    border: 1px solid var(--panel-border); padding: 10px 12px; border-radius: 8px;
+    cursor: pointer; font-size: 13px; text-align: left; display: flex; align-items: center; gap: 8px;
+  }
+  .view-popup button:hover { color: var(--accent-soft); border-color: var(--panel-border-hover); background: rgba(124,156,255,0.08); }
 
-  /* mic button */
-  .transcript-row { display: flex; gap: 6px; margin-bottom: 8px; }
-  .transcript-row input { flex: 1; margin-bottom: 0; }
-  .mic-btn {
-    width: 38px; height: 38px; flex-shrink: 0;
-    background: #1c3324; border: 1px solid #2c5c42; border-radius: 4px;
-    color: var(--on); font-size: 16px; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    transition: all 0.2s;
+  .input-wrap { flex: 1; min-width: 0; position: relative; height: 40px; }
+  .chat-input-row input[type=text] {
+    width: 100%; height: 40px; padding: 0 14px; background: transparent;
+    border: none; color: var(--text); font-size: 14px; outline: none;
   }
-  .mic-btn:hover { background: #244430; }
-  .mic-btn.listening { background: #3b1010; border-color: #ff4444; color: #ff4444; animation: pulse 1s infinite; }
-  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
-  .stt-status { font-family: var(--mono); font-size: 10px; color: var(--text-dim); margin-bottom: 6px; min-height: 14px; }
-  .energy-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
-  .energy-label { font-family: var(--mono); font-size: 10px; color: var(--text-dim); }
-  .energy-val { font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--on); }
-  .energy-val.warn { color: var(--live); }
-  .energy-val.dead { color: #ff4444; }
-  .energy-bar-wrap { background: #0a0f0b; border: 1px solid var(--panel-border); border-radius: 4px; height: 8px; margin-bottom: 10px; overflow: hidden; }
-  .energy-bar { height: 100%; background: var(--on); border-radius: 4px; transition: width 0.8s ease, background 0.4s; }
-  .energy-bar.warn { background: var(--live); }
-  .energy-bar.dead { background: #ff4444; }
-  .energy-cutoff-banner { display: none; font-family: var(--mono); font-size: 10px; color: #ff4444; background: #1a0505; border: 1px solid #5a1010; border-radius: 4px; padding: 6px 8px; margin-bottom: 8px; }
-  .energy-cutoff-banner.show { display: block; }
-  /* Responsive breakpoints */
-  @media (max-width: 720px) {
-    body { padding: 12px; }
-    h1 { font-size: 15px; }
-    .hint { display: none; }
-    header { padding-bottom: 10px; }
-    main { gap: 14px; }
-    .blueprint-card { padding: 10px; gap: 12px; }
-    .zone-label { font-size: 9px; padding: 2px 5px; }
-    .tag { font-size: 8px; padding: 3px 6px; }
-    .light-node { width: 22px; height: 22px; font-size: 10px; }
-    .panel-block { padding: 12px; }
-    .modal-box { max-width: 94vw; padding: 16px; }
+  .chat-input-row input[type=text]::placeholder { color: var(--text-mute); }
+
+  .wave-box {
+    position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+    gap: 3px; background: rgba(255,90,110,0.06); border-radius: 14px;
   }
-  @media (max-width: 480px) {
-    nav a { font-size: 10px; padding: 3px 8px; }
-    h1 { font-size: 13px; }
-    .light-node { width: 20px; height: 20px; }
-    .tag { font-size: 7.5px; padding: 2px 5px; }
+  .wave-box.active { display: flex; }
+  .wave-box .bar {
+    width: 3px; border-radius: 2px; background: var(--accent-grad); height: 6px;
+    transition: height 0.08s ease;
+  }
+  .wave-box .wave-label {
+    position: absolute; left: 14px; font-family: var(--mono); font-size: 10px; color: var(--danger);
+    display: flex; align-items: center; gap: 5px;
+  }
+  .wave-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--danger); animation: think 1s infinite; }
+
+  .mic-btn, .send-btn {
+    width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 16px;
+    transition: all 0.18s ease;
+  }
+  .mic-btn { background: rgba(255,255,255,0.05); border: 1px solid var(--panel-border); color: var(--text-dim); }
+  .mic-btn:hover { border-color: var(--panel-border-hover); color: var(--accent-soft); }
+  .mic-btn.listening { background: rgba(255,90,110,0.15); border-color: var(--danger); color: var(--danger); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,90,110,0.4); } 50% { box-shadow: 0 0 0 8px rgba(255,90,110,0); } }
+  .send-btn { background: var(--accent-grad); color: #fff; box-shadow: 0 4px 14px rgba(79,114,255,0.35); }
+  .send-btn:hover { filter: brightness(1.1); }
+  .send-btn:disabled { opacity: 0.4; cursor: not-allowed; filter: none; }
+
+  /* ============ MODAL (2D / 3D popup) ============ */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 200; display: none;
+    background: rgba(2, 4, 12, 0.72); backdrop-filter: blur(6px);
+    align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-box {
+    width: min(1180px, 96vw); height: min(760px, 92vh);
+    background: var(--panel-solid); border: 1px solid var(--panel-border); border-radius: 18px;
+    display: flex; flex-direction: column; overflow: hidden;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+  }
+  .modal-head {
+    flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px; border-bottom: 1px solid var(--panel-border);
+  }
+  .modal-head .title { font-family: var(--mono); font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim); }
+  .modal-close {
+    width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--panel-border);
+    background: rgba(255,255,255,0.04); color: var(--text-dim); cursor: pointer; font-size: 16px;
+  }
+  .modal-close:hover { color: var(--text); border-color: var(--panel-border-hover); }
+  .modal-body { flex: 1; min-height: 0; overflow: auto; position: relative; }
+  .modal-body iframe { width: 100%; height: 100%; border: 0; background: #060a1a; }
+  .modal-loading {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: var(--text-mute); font-family: var(--mono); font-size: 12px; gap: 8px;
+  }
+
+  /* ---- 2D control view rendered inline inside modal ---- */
+  .plan2d-wrap { padding: 18px; display: grid; grid-template-columns: 2.2fr 1fr; gap: 16px; height: 100%; }
+  @media (max-width: 860px) { .plan2d-wrap { grid-template-columns: 1fr; overflow-y: auto; } }
+  .plan2d-card { background: #fdfdfd; border-radius: 10px; padding: 14px; overflow: auto; min-height: 400px; }
+  .plan2d-card svg { width: 100%; height: auto; display: block; }
+  .plan2d-wall { fill: #1a1a1a; }
+  .plan2d-window { fill: #aee2f3; stroke: #1a1a1a; stroke-width: 1; }
+  .plan2d-hall { fill: #eef1ef; }
+  .plan2d-room-text { font-family: var(--mono); font-size: 12px; fill: #444; font-weight: 700; }
+  .plan2d-dim { font-family: var(--mono); font-size: 9px; fill: #999; }
+  .plan2d-relative { position: relative; }
+  
+  /* 2D Interactive Node Styles */
+  .p2d-node { position: absolute; transform: translate(-50%, -50%); z-index: 10; cursor: pointer; }
+  .p2d-item {
+    padding: 3px 6px; border-radius: 6px; background: rgba(10, 15, 30, 0.85); border: 1.5px solid #444;
+    display: flex; align-items: center; justify-content: center; gap: 3px; font-size: 11px; color: #aaa;
+    font-family: var(--mono); transition: all 0.2s ease; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+  .p2d-item.active { background: #fff; border-color: var(--accent-1); color: #000; box-shadow: 0 0 12px rgba(79,114,255,0.7); }
+  .p2d-item .symbol { font-size: 12px; }
+  .p2d-item .lbl { font-size: 8px; font-weight: 700; }
+
+  .plan2d-side { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+  .plan2d-panel { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px; padding: 12px; }
+  .plan2d-panel h3 { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-mute); margin: 0 0 8px; }
+  .p2d-device-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--panel-border); font-size: 11px; }
+  .p2d-device-row:last-child { border-bottom: none; }
+  .p2d-toggle {
+    font-family: var(--mono); font-size: 9.5px; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--panel-border);
+    background: rgba(255,255,255,0.03); color: var(--text-dim); cursor: pointer;
+  }
+  .p2d-toggle.on { color: var(--accent-soft); border-color: var(--accent-soft); background: rgba(124,156,255,0.1); }
+
+  @media (max-width: 560px) {
+    .sidebar { position: absolute; height: 100%; width: 140px; }
+    .sidebar.collapsed { margin-left: -140px; }
   }
 </style>
 </head>
 <body>
 
-<header>
-  <h1><a href="/" style="color: inherit; text-decoration: none;">SMART HOUSE</a> <span>// Switch Tester</span></h1>
-  <span class="hint">click any light / door / valve on the plan to toggle it</span>
-  <span class="hint" id="api-addr" style="color:var(--live);"></span>
-  <nav>
-    <a href="/">About Specs</a>
-    <a href="/xray">X-Ray Tour</a>
-    <a href="/dashboard">Blueprint Dashboard</a>
-    <a href="/threed">3D View</a>
-  </nav>
-</header>
+<div class="app">
 
-<main>
-  <div class="blueprint-card">
+  <!-- ============ LEFT SIDEBAR ============ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="mark">F</div>
+      <button class="sidebar-hide-btn" onclick="toggleSidebar()" title="Hide Sidebar">◀</button>
+    </div>
+    <div class="sidebar-section-label">Devices</div>
+    <div class="device-list" id="deviceList">
+      <!-- Phone, TV, Laptop only -->
+    </div>
+    <div class="sidebar-bottom">
+      <div class="topup-box">
+        <input type="text" id="topup-amount" placeholder="RWF">
+        <button onclick="doTopup()">Top up</button>
+      </div>
+      <button class="profile-btn" id="profileBtn" onclick="handleProfileClick()">
+        <span class="profile-avatar" id="profileAvatar">…</span>
+        <span class="profile-name" id="profileName">Loading</span>
+      </button>
+    </div>
+  </aside>
 
-    <!-- BOX 1: MAIN HOUSE — identical floor plan/geometry to the dashboard -->
-    <div class="zone-box" id="house-zone">
-      <div class="zone-label">Box 1: Main House Interior</div>
+  <!-- ============ MAIN CHAT ============ -->
+  <main class="chat-main">
+    <button class="sidebar-show-btn" onclick="toggleSidebar()" title="Show Sidebar">☰</button>
 
-      <svg class="cad-plan" viewBox="0 0 1000 610" xmlns="http://www.w3.org/2000/svg">
-        <g stroke="#999" stroke-width="0.75">
-          <line x1="60" y1="34" x2="940" y2="34" />
-          <line x1="60" y1="29" x2="60" y2="39" />
-          <line x1="940" y1="29" x2="940" y2="39" />
-          <line x1="34" y1="60" x2="34" y2="570" />
-          <line x1="29" y1="60" x2="39" y2="60" />
-          <line x1="29" y1="570" x2="39" y2="570" />
-        </g>
-        <text x="460" y="26" class="dim-text">21,120 mm</text>
-        <text x="16" y="315" class="dim-text" transform="rotate(-90 16 315)">12,240 mm</text>
-
-        <path d="M 60,60 L 940,60 L 940,570 L 460,570 L 460,554 L 924,554 L 924,76 L 76,76 L 76,554 L 400,554 L 400,570 L 60,570 Z"
-              class="wall" fill-rule="evenodd" />
-
-        <rect x="76" y="300" width="848" height="90" class="hallway-fill" />
-        <text x="460" y="349" class="hallway-text" text-anchor="middle">HALLWAY / CIRCULATION</text>
-        <text x="460" y="364" class="hallway-sub" text-anchor="middle">≈ 1.5 m clear width</text>
-
-        <rect x="76"  y="300" width="84"  height="14" class="wall" />
-        <rect x="200" y="300" width="150" height="14" class="wall" />
-        <rect x="390" y="300" width="190" height="14" class="wall" />
-        <rect x="620" y="300" width="180" height="14" class="wall" />
-        <rect x="840" y="300" width="84"  height="14" class="wall" />
-
-        <rect x="76"  y="376" width="414" height="14" class="wall" />
-        <rect x="620" y="376" width="180" height="14" class="wall" />
-        <rect x="840" y="376" width="84"  height="14" class="wall" />
-
-        <rect x="266" y="76" width="14" height="224" class="wall" />
-        <rect x="490" y="76" width="14" height="224" class="wall" />
-        <rect x="704" y="76" width="14" height="224" class="wall" />
-
-        <rect x="490" y="390" width="14" height="164" class="wall" />
-        <rect x="704" y="390" width="14" height="164" class="wall" />
-
-        <rect x="120" y="60" width="90"  height="14" class="window" />
-        <rect x="340" y="60" width="100" height="14" class="window" />
-        <rect x="560" y="60" width="80"  height="14" class="window" />
-        <rect x="780" y="60" width="90"  height="14" class="window" />
-        <rect x="60" y="140" width="14" height="90"  class="window" />
-        <rect x="60" y="440" width="14" height="90"  class="window" />
-        <rect x="926" y="120" width="14" height="80" class="window" />
-        <rect x="926" y="440" width="14" height="80" class="window" />
-
-        <path d="M 200,314 A 40,40 0 0,1 160,354" class="door-arc" />
-        <line x1="160" y1="314" x2="160" y2="354" class="door-leaf" />
-        <path d="M 390,314 A 40,40 0 0,1 350,354" class="door-arc" />
-        <line x1="350" y1="314" x2="350" y2="354" class="door-leaf" />
-        <path d="M 620,314 A 40,40 0 0,1 580,354" class="door-arc" />
-        <line x1="580" y1="314" x2="580" y2="354" class="door-leaf" />
-        <path d="M 840,314 A 40,40 0 0,1 800,354" class="door-arc" />
-        <line x1="800" y1="314" x2="800" y2="354" class="door-leaf" />
-
-        <path d="M 620,376 A 40,40 0 0,0 580,336" class="door-arc" />
-        <line x1="580" y1="376" x2="580" y2="336" class="door-leaf" />
-        <path d="M 840,376 A 40,40 0 0,0 800,336" class="door-arc" />
-        <line x1="800" y1="376" x2="800" y2="336" class="door-leaf" />
-
-        <path d="M 460,554 A 60,60 0 0,0 400,494" class="door-arc" />
-        <line x1="400" y1="554" x2="400" y2="494" class="door-leaf" />
-
-        <rect x="100" y="410" width="60" height="110" rx="4" class="furniture" />
-        <rect x="190" y="480" width="130" height="50" rx="4" class="furniture" />
-        <rect x="185" y="410" width="140" height="45" class="furniture" />
-
-        <rect x="300" y="90" width="180" height="36" class="furniture" />
-        <circle cx="330" cy="108" r="8" class="furniture" />
-        <circle cx="360" cy="108" r="8" class="furniture" />
-        <rect x="310" y="150" width="100" height="46" rx="2" class="furniture" />
-
-        <rect x="760" y="430" width="140" height="100" rx="4" class="furniture" />
-        <rect x="530" y="500" width="130" height="36" class="furniture" />
-        <rect x="100" y="100" width="120" height="90" rx="4" class="furniture" />
-        <rect x="530" y="90" width="120" height="80" rx="4" class="furniture" />
-        <rect x="750" y="100" width="120" height="90" rx="4" class="furniture" />
-
-        <text x="100" y="210" class="room-text">ROOM 1 · GUEST</text>
-        <text x="100" y="226" class="dim-text">4.6 m × 5.4 m</text>
-
-        <text x="310" y="210" class="room-text">KITCHEN &amp; DINING</text>
-        <text x="310" y="226" class="dim-text">5.0 m × 5.4 m</text>
-
-        <text x="530" y="210" class="room-text">ROOM 3</text>
-        <text x="530" y="226" class="dim-text">4.8 m × 5.4 m</text>
-
-        <text x="745" y="210" class="room-text">BATHROOM</text>
-        <text x="745" y="226" class="dim-text">4.9 m × 5.4 m</text>
-
-        <text x="100" y="400" class="room-text">LIVING ROOM</text>
-        <text x="100" y="416" class="dim-text">9.9 m × 3.9 m</text>
-
-        <text x="530" y="410" class="room-text">ROOM 2 · STUDY</text>
-        <text x="530" y="426" class="dim-text">4.8 m × 3.9 m</text>
-
-        <text x="745" y="410" class="room-text">ROOM 4 · MASTER</text>
-        <text x="745" y="426" class="dim-text">4.9 m × 3.9 m</text>
-      </svg>
-
-      <!-- clickable house devices (same positions as dashboard) -->
-      <div class="device-node" data-device="light_living_top_left" style="top: 68.6%; left: 15%;" title="Living Room Top Left"><div class="light-node" id="icon-light_living_top_left">💡</div></div>
-      <div class="device-node" data-device="light_living_top_right" style="top: 68.6%; left: 34%;" title="Living Room Top Right"><div class="light-node" id="icon-light_living_top_right">💡</div></div>
-      <div class="device-node" data-device="light_living_center" style="top: 77.2%; left: 28%;" title="Living Room Center"><div class="light-node" id="icon-light_living_center">💡</div></div>
-      <div class="device-node" data-device="light_living_bottom_left" style="top: 85.7%; left: 15%;" title="Living Room Bottom Left"><div class="light-node" id="icon-light_living_bottom_left">💡</div></div>
-      <div class="device-node" data-device="light_living_bottom_right" style="top: 85.7%; left: 34%;" title="Living Room Bottom Right"><div class="light-node" id="icon-light_living_bottom_right">💡</div></div>
-
-      <div class="device-node" data-device="light_kitchen" style="top: 23.8%; left: 38.5%;" title="Kitchen Light"><div class="light-node" id="icon-light_kitchen">💡</div></div>
-      <div class="tag valve" data-device="valve_kitchen" id="valve-valve_kitchen" style="top: 30.4%; left: 43%;">🚰 KITCHEN VALVE: <span id="state-valve_kitchen">CLOSE</span></div>
-
-      <div class="device-node" data-device="light_room_1" style="top: 30.4%; left: 17.1%;" title="Room 1 Light"><div class="light-node" id="icon-light_room_1">💡</div></div>
-      <div class="device-node" data-device="light_room_3" style="top: 30.4%; left: 60.4%;" title="Room 3 Light"><div class="light-node" id="icon-light_room_3">💡</div></div>
-      <div class="device-node" data-device="light_room_2" style="top: 77.2%; left: 60.4%;" title="Room 2 Light"><div class="light-node" id="icon-light_room_2">💡</div></div>
-      <div class="device-node" data-device="light_room_4" style="top: 77.2%; left: 82.1%;" title="Room 4 Light"><div class="light-node" id="icon-light_room_4">💡</div></div>
-
-      <!-- Appliances placed on the floor plan -->
-      <div class="device-node" data-device="tv" style="top: 80%; left: 22%;" title="TV (100W)"><div class="light-node" id="icon-tv">📺</div></div>
-      <div class="device-node" data-device="fridge" style="top: 18%; left: 33%;" title="Fridge (150W)"><div class="light-node" id="icon-fridge">🧊</div></div>
-      <div class="device-node" data-device="microwave" style="top: 28%; left: 33%;" title="Microwave (1200W)"><div class="light-node" id="icon-microwave">📡</div></div>
-
-      <!-- Sockets on floor plan -->
-      <!-- Living room: 4 sockets along the bottom wall -->
-      <div class="device-node" data-device="socket_living_1" style="top: 92%; left: 8%;" title="Living Socket 1 — Phone"><div class="light-node" id="icon-socket_living_1">🔌</div></div>
-      <div class="device-node" data-device="socket_living_2" style="top: 92%; left: 16%;" title="Living Socket 2 — Radio"><div class="light-node" id="icon-socket_living_2">🔌</div></div>
-      <div class="device-node" data-device="socket_living_3" style="top: 92%; left: 24%;" title="Living Socket 3 — Laptop"><div class="light-node" id="icon-socket_living_3">🔌</div></div>
-      <div class="device-node" data-device="socket_living_4" style="top: 92%; left: 32%;" title="Living Socket 4 — Fan"><div class="light-node" id="icon-socket_living_4">🔌</div></div>
-      <!-- Room sockets -->
-      <div class="device-node" data-device="socket_room_1" style="top: 42%; left: 8%;" title="Room 1 Socket"><div class="light-node" id="icon-socket_room_1">🔌</div></div>
-      <div class="device-node" data-device="socket_room_2" style="top: 88%; left: 55%;" title="Room 2 Socket"><div class="light-node" id="icon-socket_room_2">🔌</div></div>
-      <div class="device-node" data-device="socket_room_3" style="top: 42%; left: 55%;" title="Room 3 Socket"><div class="light-node" id="icon-socket_room_3">🔌</div></div>
-      <div class="device-node" data-device="socket_room_4" style="top: 88%; left: 78%;" title="Room 4 Socket"><div class="light-node" id="icon-socket_room_4">🔌</div></div>
-      <!-- Water heater in bathroom -->
-      <div class="device-node" data-device="water_heater" style="top: 18%; left: 82%;" title="Water Heater (2000W)"><div class="light-node" id="icon-water_heater">🚰</div></div>
-
-      <div class="tag door" data-device="door_room_1" id="door-door_room_1" style="top: 51.3%; left: 18%;">ROOM 1: <span id="state-door_room_1">CLOSE</span></div>
-      <div class="tag door" data-device="door_kitchen" id="door-door_kitchen" style="top: 51.3%; left: 37%;">KITCHEN: <span id="state-door_kitchen">CLOSE</span></div>
-      <div class="tag door" data-device="door_room_3" id="door-door_room_3" style="top: 51.3%; left: 60%;">ROOM 3: <span id="state-door_room_3">CLOSE</span></div>
-      <div class="tag door" data-device="door_living_room" id="door-door_living_room" style="top: 96%; left: 43%;">LIVING MAIN DOOR: <span id="state-door_living_room">CLOSE</span></div>
-      <div class="tag door" data-device="door_room_2" id="door-door_room_2" style="top: 61%; left: 60%;">ROOM 2: <span id="state-door_room_2">CLOSE</span></div>
-      <div class="tag door" data-device="door_room_4" id="door-door_room_4" style="top: 61%; left: 82%;">MASTER: <span id="state-door_room_4">CLOSE</span></div>
+    <!-- Cash power monitor -->
+    <div class="cashpower-monitor" id="cashPower">
+      <div class="cp-head">
+        <span class="cp-title"><span class="cp-live-dot"></span>Cash Power</span>
+      </div>
+      <div class="cp-balance" id="cp-balance">— kWh</div>
+      <div class="cp-sub" id="cp-watts">0 W live draw</div>
+      <div class="cp-bar-wrap"><div class="cp-bar" id="cp-bar"></div></div>
     </div>
 
-    <!-- BOX 2: MAIN GATE & PERIMETER COMPOUND — identical to dashboard -->
-    <div class="zone-box" id="gate-zone">
-      <div class="zone-label">Box 2: Outdoor Main Gate Compound</div>
-
-      <svg class="cad-plan" viewBox="0 0 1000 160" xmlns="http://www.w3.org/2000/svg">
-        <rect x="60" y="30" width="880" height="100" fill="none" stroke="#1a1a1a" stroke-width="12" rx="4" />
-        <rect x="360" y="24" width="280" height="20" class="wall-cut" />
-        <line x1="360" y1="30" x2="640" y2="30" class="gate-bars" />
-        <line x1="360" y1="50" x2="360" y2="130" stroke="#ccc" stroke-dasharray="4,4" stroke-width="1.5" />
-        <line x1="640" y1="50" x2="640" y2="130" stroke="#ccc" stroke-dasharray="4,4" stroke-width="1.5" />
-        <text x="500" y="70" class="room-text" fill="#d94040" text-anchor="middle">MAIN ENTRANCE GATEWAY</text>
-        <text x="500" y="88" class="dim-text" text-anchor="middle">AUTOMATED ACCESS CONTROL</text>
-      </svg>
-
-      <div class="device-node" data-device="light_gate" style="top: 30%; left: 28%;" title="Gate Light"><div class="light-node" id="icon-light_gate">💡</div></div>
-      <div class="tag gate" data-device="gate_main" id="door-gate_main" style="top: 30%; left: 50%;">MAIN GATE: <span id="state-gate_main">CLOSE</span></div>
+    <div class="chat-messages" id="chatMessages">
+      <div class="chat-empty" id="chatEmpty">
+        <div class="glyph">F</div>
+        <h2>Hey, I'm FRIDAY</h2>
+        <p>Ask me to control a light, check a device, or manage your energy balance — type below, or tap the mic to speak.</p>
+      </div>
     </div>
 
+    <div class="chat-input-bar">
+      <div class="chat-input-row">
+        <div class="plus-wrap" id="plusWrap">
+          <button class="plus-btn" id="plusBtn" type="button" aria-label="Choose 2D or 3D view">+</button>
+          <div class="view-popup" id="viewPopup">
+            <button type="button" onclick="openView('2d')">▦ 2D House View</button>
+            <button type="button" onclick="openView('3d')">◈ 3D House View</button>
+          </div>
+        </div>
+
+        <div class="input-wrap">
+          <input type="text" id="chatInput" placeholder="Message FRIDAY…" autocomplete="off">
+          <div class="wave-box" id="waveBox">
+            <span class="wave-label"><span class="wave-dot"></span>listening</span>
+            <div class="bar" data-b></div><div class="bar" data-b></div><div class="bar" data-b></div>
+            <div class="bar" data-b></div><div class="bar" data-b></div><div class="bar" data-b></div>
+            <div class="bar" data-b></div><div class="bar" data-b></div><div class="bar" data-b></div>
+            <div class="bar" data-b></div><div class="bar" data-b></div><div class="bar" data-b></div>
+          </div>
+        </div>
+
+        <button class="mic-btn" id="micBtn" title="Voice input" onclick="toggleMic()">🎤</button>
+        <button class="send-btn" id="sendBtn" title="Send" onclick="sendMessage()">➤</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ============ MODAL: 2D / 3D popup ============ -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box">
+    <div class="modal-head">
+      <span class="title" id="modalTitle">2D House View</span>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
   </div>
-
-  <div class="side-panel">
-    <div class="panel-block">
-      <h2>⚡ Electricity (RWF)</h2>
-      <div class="energy-cutoff-banner" id="cutoff-banner">⚠ Balance exhausted — all devices cut off</div>
-      <div class="energy-row">
-        <span class="energy-label">Balance</span>
-        <span class="energy-val" id="e-balance">— RWF</span>
-      </div>
-      <div class="energy-bar-wrap"><div class="energy-bar" id="e-bar" style="width:0%"></div></div>
-      <div class="energy-row">
-        <span class="energy-label">Live draw</span>
-        <span class="energy-val" id="e-watts">0 W</span>
-      </div>
-      <div class="energy-row">
-        <span class="energy-label">Spent</span>
-        <span class="energy-val" id="e-spent" style="color:var(--text-dim); font-size:11px;">0.00 RWF</span>
-      </div>
-      <div class="energy-row">
-        <span class="energy-label">Consumed</span>
-        <span class="energy-val" id="e-wh" style="color:var(--text-dim); font-size:11px;">0.0000 Wh</span>
-      </div>
-      <div class="topup-row">
-        <input type="text" id="topup-amount" placeholder="Amount in RWF">
-        <button class="send-btn" onclick="doTopup()">Top up</button>
-      </div>
-    </div>
-    <div class="panel-block">
-      <h2>🧪 Ask AI (online mode)</h2>
-      <div class="stt-status" id="stt-status"></div>
-      <div class="transcript-row">
-        <input type="text" id="transcript" placeholder="type or tap 🎤 to speak">
-        <button class="mic-btn" id="mic-btn" title="Hold to speak" onclick="toggleMic()">🎤</button>
-      </div>
-      <button class="send-btn" onclick="sendTranscript()">Send</button>
-      <div id="result" style="margin-top:8px;font-family:var(--mono);font-size:11px;background:#0a0f0b;border:1px solid var(--panel-border);border-radius:6px;padding:10px;white-space:pre-wrap;min-height:40px;color:var(--text-dim);">—</div>
-    </div>
-    <div class="panel-block">
-      <h2>🔌 Socket Control</h2>
-      <div id="socket-selected-label" style="font-family:var(--mono);font-size:10px;color:var(--text-dim);margin-bottom:8px;">tap a socket on the plan to select it</div>
-      <div class="socket-grid" id="purpose-btns" style="opacity:0.3;pointer-events:none;">
-        <button class="socket-btn" onclick="useSocket('📱 Phone')">📱 Phone</button>
-        <button class="socket-btn" onclick="useSocket('📻 Radio')">📻 Radio</button>
-        <button class="socket-btn" onclick="useSocket('💻 Laptop')">💻 Laptop</button>
-        <button class="socket-btn" onclick="useSocket('💨 Fan')">💨 Fan</button>
-        <button class="socket-btn" onclick="useSocket('🗡️ Iron')">🗡️ Iron</button>
-        <button class="socket-btn" onclick="useSocket('💡 Lamp')">💡 Lamp</button>
-      </div>
-    </div>
-    <div class="panel-block log-panel">
-      <h2>Command Log</h2>
-      <div id="log"><div style="color: var(--text-dim); font-size: 11px;">No commands yet.</div></div>
-    </div>
-  </div>
-</main>
-
+</div>
 
 <script>
-let deviceStates = {};
-let deviceTypes = {};
-let topupMax = 0;  // tracks highest balance seen for the progress bar
+/* ===================================================================
+   DEVICE / ENERGY STATE — shared across sidebar, cash-power, 2D modal
+   =================================================================== */
+// Master state initializations including Living Room (5 Bulbs, 4 Sockets, TV), Main Hall (3 Bulbs), Each Room (1 Socket, 1 Bulb each)
+let deviceStates = {
+  // Sidebar Devices
+  'phone': 'off', 'tv': 'off', 'laptop': 'off',
+  
+  // Living Room Devices (5 Bulbs, 4 Sockets, TV)
+  'light_living_1': 'off', 'light_living_2': 'off', 'light_living_3': 'off', 'light_living_4': 'off', 'light_living_5': 'off',
+  'socket_living_1': 'off', 'socket_living_2': 'off', 'socket_living_3': 'off', 'socket_living_4': 'off',
+  'tv_living': 'off',
+
+  // Mainhall / Hallway (3 Bulbs)
+  'light_hall_1': 'off', 'light_hall_2': 'off', 'light_hall_3': 'off',
+
+  // Room 1 (Guest) (1 Bulb, 1 Socket)
+  'light_guest': 'off', 'socket_guest': 'off',
+
+  // Kitchen & Dining (1 Bulb, 1 Socket)
+  'light_kitchen': 'off', 'socket_kitchen': 'off',
+
+  // Room 3 (1 Bulb, 1 Socket)
+  'light_room3': 'off', 'socket_room3': 'off',
+
+  // Bathroom (1 Bulb, 1 Socket)
+  'light_bathroom': 'off', 'socket_bathroom': 'off',
+
+  // Room 2 (Study) (1 Bulb, 1 Socket)
+  'light_study': 'off', 'socket_study': 'off',
+
+  // Room 4 (Master) (1 Bulb, 1 Socket)
+  'light_master': 'off', 'socket_master': 'off'
+};
+
+let deviceTypes = {
+  'phone': 'phone', 'tv': 'tv', 'laptop': 'laptop',
+  'tv_living': 'tv',
+  'light_living_1': 'light', 'light_living_2': 'light', 'light_living_3': 'light', 'light_living_4': 'light', 'light_living_5': 'light',
+  'socket_living_1': 'socket', 'socket_living_2': 'socket', 'socket_living_3': 'socket', 'socket_living_4': 'socket',
+  'light_hall_1': 'light', 'light_hall_2': 'light', 'light_hall_3': 'light',
+  'light_guest': 'light', 'socket_guest': 'socket',
+  'light_kitchen': 'light', 'socket_kitchen': 'socket',
+  'light_room3': 'light', 'socket_room3': 'socket',
+  'light_bathroom': 'light', 'socket_bathroom': 'socket',
+  'light_study': 'light', 'socket_study': 'socket',
+  'light_master': 'light', 'socket_master': 'socket'
+};
+
+let deviceMeta = {
+  'phone': { label: 'Phone', icon: '📱' },
+  'tv': { label: 'TV', icon: '📺' },
+  'laptop': { label: 'Laptop', icon: '💻' }
+};
+
+let topupMax = 0;
+
+const ICONS = { light: '💡', socket: '🔌', tv: '📺', phone: '📱', laptop: '💻', door: '🚪', gate: '🛡️' };
+
+function prettyLabel(id) {
+  if (deviceMeta[id]?.label) return deviceMeta[id].label;
+  return id.replace(/^(light_|socket_|valve_|gate_)/, '').replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  sidebar.classList.toggle('collapsed');
+}
 
 async function loadDevices() {
-  const res = await fetch("/devices");
-  const devices = await res.json();
-  Object.entries(devices).forEach(([id, d]) => { deviceTypes[id] = d.type; });
+  try {
+    const res = await fetch('/devices');
+    const devices = await res.json();
+    Object.entries(devices).forEach(([id, d]) => {
+      deviceTypes[id] = d.type || deviceTypes[id] || 'light';
+      deviceMeta[id] = { label: d.label || prettyLabel(id) };
+    });
+  } catch (e) { /* use default state */ }
 }
 
 async function pollState() {
   try {
-    const res = await fetch("/state");
+    const res = await fetch('/state');
     const data = await res.json();
     Object.entries(data.devices).forEach(([id, d]) => {
       deviceStates[id] = d.state;
-      deviceTypes[id] = d.type;
+      if (d.type) deviceTypes[id] = d.type;
     });
-    render(data.devices, data.log);
-    pollEnergy();
-  } catch (e) { /* keep last known UI on transient failure */ }
+  } catch (e) { /* keep last known UI */ }
+  renderSidebarDevices();
+  render2DModal();
+  pollEnergy();
 }
 
-function render(devices, log) {
-  Object.entries(devices).forEach(([id, d]) => {
-    const isActive = d.state === "on" || d.state === "open";
-    if (d.type === "light") {
-      const icon = document.getElementById(`icon-${id}`);
-      if (icon) { icon.classList.toggle("active", isActive); icon.classList.remove("pending"); }
-    } else if (d.type === "socket") {
-      const btn = document.getElementById(`sbtn-${id}`);
-      if (btn) { btn.classList.toggle("active", isActive); btn.classList.remove("pending"); }
-      const icon = document.getElementById(`icon-${id}`);
-      if (icon) { icon.classList.toggle("active", isActive); icon.classList.remove("pending"); }
-    } else if (d.type === "appliance") {
-      const icon = document.getElementById(`icon-${id}`);
-      if (icon) { icon.classList.toggle("active", isActive); icon.classList.remove("pending"); }
-      const tag = document.getElementById(`valve-${id}`);
-      const stateTxt = document.getElementById(`state-${id}`);
-      if (tag && stateTxt) { stateTxt.textContent = d.state.toUpperCase(); tag.classList.toggle("active", isActive); tag.classList.remove("pending"); }
-    } else {
-      const tag = document.getElementById(`door-${id}`);
-      const stateTxt = document.getElementById(`state-${id}`);
-      if (tag && stateTxt) { stateTxt.textContent = d.state.toUpperCase(); tag.classList.toggle("active", isActive); tag.classList.remove("pending"); }
-    }
-  });
-
-  const logEl = document.getElementById("log");
-  logEl.innerHTML = log.length
-    ? log.map(e => `<div class="log-entry"><span class="t">${e.time}</span> — ${e.device} → <b>${e.action}</b> <span class="src">[${e.source}]</span></div>`).join("")
-    : '<div style="color: var(--text-dim); font-size: 11px;">No commands yet.</div>';
+/* Render ONLY Phone, TV, and Laptop in sidebar */
+function renderSidebarDevices() {
+  const list = document.getElementById('deviceList');
+  const allowedSidebarDevices = ['phone', 'tv', 'laptop'];
+  
+  list.innerHTML = allowedSidebarDevices.map(id => {
+    const isOn = deviceStates[id] === 'on';
+    const icon = ICONS[id] || '⚙️';
+    const label = prettyLabel(id);
+    return `<div class="device-chip ${isOn ? 'active' : ''}" data-id="${id}" onclick="toggleDevice('${id}')" title="${label}">
+      <span class="dot"></span>
+      <span class="icon">${icon}</span>
+      <span class="name">${label}</span>
+    </div>`;
+  }).join('');
 }
 
-let selectedSocket = null;
-const socketLabel = {};  // socketId -> active purpose label (or null)
+async function toggleDevice(id) {
+  const current = deviceStates[id] || 'off';
+  const nextAction = current === 'on' ? 'off' : 'on';
+  deviceStates[id] = nextAction;
+  
+  renderSidebarDevices();
+  render2DModal();
 
-function _refreshPurposeBtns() {
-  const active = socketLabel[selectedSocket] || null;
-  document.querySelectorAll("#purpose-btns .socket-btn").forEach(b => {
-    b.classList.toggle("active", b.textContent.trim() === active);
-  });
+  try {
+    await fetch('/command', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device: id, action: nextAction, source: 'chat-ui' }),
+    });
+  } catch (e) {}
 }
 
-function selectSocket(id) {
-  if (selectedSocket) document.getElementById(`icon-${selectedSocket}`)?.classList.remove("selected-socket");
-  selectedSocket = id;
-  document.getElementById(`icon-${id}`)?.classList.add("selected-socket");
-  const room = id.replace("socket_", "").replace("_", " ").replace(/(\w+)/g, w => w[0].toUpperCase() + w.slice(1));
-  document.getElementById("socket-selected-label").textContent = `→ ${room} selected`;
-  document.getElementById("socket-selected-label").style.color = "var(--on)";
-  document.getElementById("purpose-btns").style.opacity = "1";
-  document.getElementById("purpose-btns").style.pointerEvents = "auto";
-  _refreshPurposeBtns();
+/* ===================================================================
+   CASH POWER MONITOR
+   =================================================================== */
+async function pollEnergy() {
+  try {
+    const res = await fetch('/energy');
+    const e = await res.json();
+    const bal = e.balance_kwh ?? 0;
+    if (bal > topupMax) topupMax = bal;
+    const pct = topupMax > 0 ? Math.min(100, (bal / topupMax) * 100) : 0;
+    const cls = pct < 10 ? 'dead' : pct < 25 ? 'warn' : '';
+    const balEl = document.getElementById('cp-balance');
+    balEl.textContent = bal.toFixed(2) + ' kWh';
+    balEl.className = 'cp-balance ' + cls;
+    document.getElementById('cp-bar').style.width = pct + '%';
+    document.getElementById('cp-bar').className = 'cp-bar ' + cls;
+    document.getElementById('cp-watts').textContent = (e.current_watts ?? 0) + ' W live draw';
+  } catch (e) { /* default fallback view */ }
 }
 
-async function useSocket(label) {
-  if (!selectedSocket) return;
-  const isOn = deviceStates[selectedSocket] === "on";
-  const action = isOn ? "off" : "on";
-  await fetch("/command", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ device: selectedSocket, action, source: `web-${label}` }),
-  });
-  await pollState();
-  const nowOn = deviceStates[selectedSocket] === "on";
-  socketLabel[selectedSocket] = nowOn ? label : null;
-  _refreshPurposeBtns();
+async function doTopup() {
+  const input = document.getElementById('topup-amount');
+  const amt = parseFloat(input.value);
+  if (!amt || amt <= 0) return;
+  try {
+    const res = await fetch('/energy/topup', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount_rwf: amt }),
+    });
+    const json = await res.json();
+    if (json.ok) { topupMax = json.balance_kwh; input.value = ''; pollEnergy(); }
+  } catch (e) {}
 }
 
-function onOffFor(type) { return (type === "light" || type === "appliance" || type === "socket") ? ["on", "off"] : ["open", "close"]; }
+/* ===================================================================
+   PROFILE
+   =================================================================== */
+async function loadProfile() {
+  const avatarEl = document.getElementById('profileAvatar');
+  const nameEl = document.getElementById('profileName');
+  try {
+    const res = await fetch('/login');
+    if (!res.ok) throw new Error('no session');
+    const data = await res.json();
+    const name = data.name || data.username || data.email || 'Account';
+    nameEl.textContent = name;
+    if (data.avatar_url) avatarEl.innerHTML = `<img src="${data.avatar_url}" alt="${name}">`;
+    else avatarEl.textContent = name.trim().slice(0, 1).toUpperCase();
+  } catch (e) {
+    nameEl.textContent = 'Guest';
+    avatarEl.textContent = 'G';
+  }
+}
+function handleProfileClick() { window.location.href = '/login'; }
 
-async function toggleDevice(el) {
-  const id = el.dataset.device;
-  if (!id) return;
-  const type = deviceTypes[id] || (
-    id.startsWith("light") ? "light" :
-    id.startsWith("socket") ? "socket" :
-    id.startsWith("valve") ? "valve" :
-    id === "water_heater" || id === "fridge" || id === "tv" || id === "microwave" ? "appliance" :
-    "door"
-  );
+/* ===================================================================
+   CHAT
+   =================================================================== */
+const chatMessages = document.getElementById('chatMessages');
+const chatEmpty = document.getElementById('chatEmpty');
+const chatInput = document.getElementById('chatInput');
 
-  // sockets: select them, don't toggle directly
-  if (type === "socket") { selectSocket(id); return; }
+function addMessage(role, html, isThinkingId) {
+  if (chatEmpty) chatEmpty.remove();
+  const wrap = document.createElement('div');
+  wrap.className = `msg ${role}`;
+  if (isThinkingId) wrap.id = isThinkingId, wrap.classList.add('thinking');
+  const avatar = role === 'ai' ? 'F' : '🙂';
+  wrap.innerHTML = `<span class="avatar">${avatar}</span><div class="bubble">${html}</div>`;
+  chatMessages.appendChild(wrap);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  return wrap;
+}
 
-  const [onVal, offVal] = onOffFor(type);
-  const current = deviceStates[id] || offVal;
-  const nextAction = current === onVal ? offVal : onVal;
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
 
-  document.getElementById(`icon-${id}`)?.classList.add("pending");
-  el.classList.add("pending");
-  await fetch("/command", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ device: id, action: nextAction, source: "web-tester" }),
-  });
+async function sendMessage() {
+  const text = chatInput.value.trim();
+  if (!text) return;
+  addMessage('user', escapeHtml(text));
+  chatInput.value = '';
+  document.getElementById('sendBtn').disabled = true;
+
+  const thinkingId = 'think-' + Date.now();
+  addMessage('ai', `<div class="think-dot"></div><div class="think-dot"></div><div class="think-dot"></div>`, thinkingId);
+
+  try {
+    const res = await fetch('/interpret', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transcript: text }),
+    });
+    const data = await res.json();
+    const reply = data.response || data.message || data.reply || JSON.stringify(data, null, 2);
+    const thinkEl = document.getElementById(thinkingId);
+    thinkEl.classList.remove('thinking');
+    thinkEl.querySelector('.bubble').innerHTML = escapeHtml(reply);
+  } catch (e) {
+    const thinkEl = document.getElementById(thinkingId);
+    thinkEl.classList.remove('thinking');
+    thinkEl.querySelector('.bubble').innerHTML = "Couldn't reach the house controller — check the connection and try again.";
+  }
+  document.getElementById('sendBtn').disabled = false;
   pollState();
 }
 
-document.querySelectorAll("[data-device]").forEach(el => {
-  el.addEventListener("click", () => toggleDevice(el));
+chatInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+
+/* ===================================================================
+   PLUS BUTTON — 2D / 3D popup selector
+   =================================================================== */
+const plusWrap = document.getElementById('plusWrap');
+document.getElementById('plusBtn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  plusWrap.classList.toggle('open');
+});
+document.addEventListener('click', (e) => {
+  if (!plusWrap.contains(e.target)) plusWrap.classList.remove('open');
 });
 
-async function sendTranscript() {
-  const transcript = document.getElementById("transcript").value.trim();
-  if (!transcript) return;
-  document.getElementById("result").textContent = "sending...";
-  const res = await fetch("/interpret", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ transcript }),
-  });
-  document.getElementById("result").textContent = JSON.stringify(await res.json(), null, 2);
-  pollState();
+function openView(kind) {
+  plusWrap.classList.remove('open');
+  const overlay = document.getElementById('modalOverlay');
+  const title = document.getElementById('modalTitle');
+  const body = document.getElementById('modalBody');
+  overlay.classList.add('open');
+
+  if (kind === '2d') {
+    title.textContent = '2D House View — Tap any node to control it';
+    body.innerHTML = build2DPlan();
+    render2DModal();
+  } else {
+    title.textContent = '3D House View';
+    body.innerHTML = `<div class="modal-loading" id="threeDLoading">rendering scene…</div>
+      <iframe src="/threed" onload="document.getElementById('threeDLoading')?.remove()"></iframe>`;
+  }
+}
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  document.getElementById('modalBody').innerHTML = '';
 }
 
-document.getElementById("transcript").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") sendTranscript();
-});
+/* ===================================================================
+   2D FLOOR PLAN & POSITIONS
+   =================================================================== */
+function build2DPlan() {
+  return `
+  <div class="plan2d-wrap">
+    <div class="plan2d-card plan2d-relative" id="plan2dCard">
+      <svg viewBox="0 0 1000 610" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 60,60 L 940,60 L 940,570 L 460,570 L 460,554 L 924,554 L 924,76 L 76,76 L 76,554 L 400,554 L 400,570 L 60,570 Z"
+              class="plan2d-wall" fill-rule="evenodd" />
+        <rect x="76" y="300" width="848" height="90" class="plan2d-hall" />
+        <text x="460" y="349" class="plan2d-dim" text-anchor="middle" letter-spacing="2">MAIN HALLWAY</text>
+        <rect x="76"  y="300" width="84"  height="14" class="plan2d-wall" />
+        <rect x="200" y="300" width="150" height="14" class="plan2d-wall" />
+        <rect x="390" y="300" width="190" height="14" class="plan2d-wall" />
+        <rect x="620" y="300" width="180" height="14" class="plan2d-wall" />
+        <rect x="840" y="300" width="84"  height="14" class="plan2d-wall" />
+        <rect x="76"  y="376" width="414" height="14" class="plan2d-wall" />
+        <rect x="620" y="376" width="180" height="14" class="plan2d-wall" />
+        <rect x="840" y="376" width="84"  height="14" class="plan2d-wall" />
+        <rect x="266" y="76" width="14" height="224" class="plan2d-wall" />
+        <rect x="490" y="76" width="14" height="224" class="plan2d-wall" />
+        <rect x="704" y="76" width="14" height="224" class="plan2d-wall" />
+        <rect x="490" y="390" width="14" height="164" class="plan2d-wall" />
+        <rect x="704" y="390" width="14" height="164" class="plan2d-wall" />
+        <rect x="120" y="60" width="90"  height="14" class="plan2d-window" />
+        <rect x="340" y="60" width="100" height="14" class="plan2d-window" />
+        <rect x="560" y="60" width="80"  height="14" class="plan2d-window" />
+        <rect x="780" y="60" width="90"  height="14" class="plan2d-window" />
+        <text x="100" y="210" class="plan2d-room-text">ROOM 1 · GUEST</text>
+        <text x="310" y="210" class="plan2d-room-text">KITCHEN &amp; DINING</text>
+        <text x="530" y="210" class="plan2d-room-text">ROOM 3</text>
+        <text x="745" y="210" class="plan2d-room-text">BATHROOM</text>
+        <text x="100" y="410" class="plan2d-room-text">LIVING ROOM</text>
+        <text x="530" y="410" class="plan2d-room-text">ROOM 2 · STUDY</text>
+        <text x="745" y="410" class="plan2d-room-text">ROOM 4 · MASTER</text>
+      </svg>
+      <div id="plan2dNodes"></div>
+    </div>
+    <div class="plan2d-side">
+      <div class="plan2d-panel">
+        <h3>2D Controls &amp; All Devices</h3>
+        <div id="plan2dDeviceList"></div>
+      </div>
+    </div>
+  </div>`;
+}
 
-// Speech-to-text
+/* Positions for 2D Interactive Placement */
+const NODE_POS = {
+  // Living room: 5 Bulbs, 4 Sockets, TV
+  light_living_1: { top: '72%', left: '12%', label: 'B1', icon: '💡' },
+  light_living_2: { top: '72%', left: '22%', label: 'B2', icon: '💡' },
+  light_living_3: { top: '72%', left: '32%', label: 'B3', icon: '💡' },
+  light_living_4: { top: '85%', left: '15%', label: 'B4', icon: '💡' },
+  light_living_5: { top: '85%', left: '30%', label: 'B5', icon: '💡' },
+  socket_living_1: { top: '78%', left: '10%', label: 'S1', icon: '🔌' },
+  socket_living_2: { top: '78%', left: '20%', label: 'S2', icon: '🔌' },
+  socket_living_3: { top: '78%', left: '30%', label: 'S3', icon: '🔌' },
+  socket_living_4: { top: '78%', left: '40%', label: 'S4', icon: '🔌' },
+  tv_living: { top: '88%', left: '22%', label: 'TV', icon: '📺' },
+
+  // Mainhall: 3 Bulbs
+  light_hall_1: { top: '56%', left: '25%', label: 'H1', icon: '💡' },
+  light_hall_2: { top: '56%', left: '50%', label: 'H2', icon: '💡' },
+  light_hall_3: { top: '56%', left: '75%', label: 'H3', icon: '💡' },
+
+  // Room 1 (Guest): 1 Bulb, 1 Socket
+  light_guest: { top: '22%', left: '15%', label: 'Bulb', icon: '💡' },
+  socket_guest: { top: '35%', left: '15%', label: 'Socket', icon: '🔌' },
+
+  // Kitchen: 1 Bulb, 1 Socket
+  light_kitchen: { top: '22%', left: '38%', label: 'Bulb', icon: '💡' },
+  socket_kitchen: { top: '35%', left: '38%', label: 'Socket', icon: '🔌' },
+
+  // Room 3: 1 Bulb, 1 Socket
+  light_room3: { top: '22%', left: '60%', label: 'Bulb', icon: '💡' },
+  socket_room3: { top: '35%', left: '60%', label: 'Socket', icon: '🔌' },
+
+  // Bathroom: 1 Bulb, 1 Socket
+  light_bathroom: { top: '22%', left: '82%', label: 'Bulb', icon: '💡' },
+  socket_bathroom: { top: '35%', left: '82%', label: 'Socket', icon: '🔌' },
+
+  // Room 2 (Study): 1 Bulb, 1 Socket
+  light_study: { top: '75%', left: '60%', label: 'Bulb', icon: '💡' },
+  socket_study: { top: '88%', left: '60%', label: 'Socket', icon: '🔌' },
+
+  // Room 4 (Master): 1 Bulb, 1 Socket
+  light_master: { top: '75%', left: '82%', label: 'Bulb', icon: '💡' },
+  socket_master: { top: '88%', left: '82%', label: 'Socket', icon: '🔌' }
+};
+
+function render2DModal() {
+  const nodesEl = document.getElementById('plan2dNodes');
+  const listEl = document.getElementById('plan2dDeviceList');
+  if (!nodesEl || !listEl) return;
+
+  const ids = Object.keys(deviceStates);
+
+  // Render on 2D map
+  nodesEl.innerHTML = ids.filter(id => NODE_POS[id]).map(id => {
+    const isOn = deviceStates[id] === 'on';
+    const pos = NODE_POS[id];
+    return `<div class="p2d-node" style="top:${pos.top}; left:${pos.left};" onclick="toggleDevice('${id}')" title="${prettyLabel(id)}">
+      <div class="p2d-item ${isOn ? 'active' : ''}">
+        <span class="symbol">${pos.icon}</span>
+        <span class="lbl">${pos.label}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Render right panel full list
+  listEl.innerHTML = ids.map(id => {
+    const isOn = deviceStates[id] === 'on';
+    const type = deviceTypes[id] || 'light';
+    const icon = ICONS[type] || '⚙️';
+    return `<div class="p2d-device-row">
+      <span>${icon} ${prettyLabel(id)}</span>
+      <button class="p2d-toggle ${isOn ? 'on' : ''}" onclick="toggleDevice('${id}')">${isOn ? 'ON' : 'OFF'}</button>
+    </div>`;
+  }).join('');
+}
+
+/* ===================================================================
+   VOICE
+   =================================================================== */
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-let recognition = null;
-let listening = false;
+let recognition = null, listening = false;
 
 if (SpeechRecognition) {
   recognition = new SpeechRecognition();
-  recognition.lang = "en-US";
-  recognition.interimResults = true;
-  recognition.maxAlternatives = 1;
-
-  recognition.onstart = () => {
-    listening = true;
-    document.getElementById("mic-btn").classList.add("listening");
-    document.getElementById("stt-status").textContent = "🔴 listening...";
-  };
+  recognition.lang = 'en-US';
   recognition.onresult = (e) => {
-    const transcript = Array.from(e.results).map(r => r[0].transcript).join("");
-    document.getElementById("transcript").value = transcript;
-    if (e.results[e.results.length - 1].isFinal) {
-      document.getElementById("stt-status").textContent = "✔ got it — sending...";
-      sendTranscript();
-    }
+    chatInput.value = Array.from(e.results).map(r => r[0].transcript).join('');
+    if (e.results[e.results.length - 1].isFinal) { stopMic(); sendMessage(); }
   };
-  recognition.onerror = (e) => {
-    document.getElementById("stt-status").textContent = "⚠ " + e.error;
-    stopMic();
-  };
-  recognition.onend = () => stopMic();
-} else {
-  document.getElementById("mic-btn").title = "Speech recognition not supported in this browser";
-  document.getElementById("mic-btn").style.opacity = "0.3";
-  document.getElementById("mic-btn").style.cursor = "not-allowed";
+  recognition.onerror = () => stopMic();
 }
 
 function toggleMic() {
   if (!recognition) return;
-  if (listening) { recognition.stop(); }
-  else { document.getElementById("transcript").value = ""; recognition.start(); }
+  if (listening) stopMic();
+  else {
+    listening = true;
+    document.getElementById('micBtn').classList.add('listening');
+    document.getElementById('waveBox').classList.add('active');
+    recognition.start();
+  }
 }
 
 function stopMic() {
   listening = false;
-  document.getElementById("mic-btn").classList.remove("listening");
-  setTimeout(() => { document.getElementById("stt-status").textContent = ""; }, 2000);
+  document.getElementById('micBtn').classList.remove('listening');
+  document.getElementById('waveBox').classList.remove('active');
+  try { recognition.stop(); } catch (e) {}
 }
 
-async function pollEnergy() {
-  try {
-    const res = await fetch("/energy");
-    const e = await res.json();
-    const bal = e.balance_kwh;                          // kWh remaining
-    const consumed = e.total_consumed_kwh;              // lifetime kWh used
-    const spentRwf = e.total_topup_rwf - bal * _avgRate(e); // approx RWF spent
-    if (bal > topupMax) topupMax = bal;
-    const pct = topupMax > 0 ? Math.min(100, (bal / topupMax) * 100) : 0;
-    const cls = pct < 10 ? "dead" : pct < 25 ? "warn" : "";
-    const balEl = document.getElementById("e-balance");
-    const barEl = document.getElementById("e-bar");
-    balEl.textContent = bal.toFixed(4) + " kWh";
-    balEl.className = "energy-val " + cls;
-    barEl.style.width = pct + "%";
-    barEl.className = "energy-bar " + cls;
-    document.getElementById("e-watts").textContent = e.current_watts + " W";
-    document.getElementById("e-spent").textContent = e.total_topup_rwf.toFixed(2) + " RWF topped up";
-    document.getElementById("e-wh").textContent = (consumed * 1000).toFixed(4) + " Wh consumed";
-    document.getElementById("cutoff-banner").classList.toggle("show", bal <= 0 && consumed > 0);
-  } catch (_) {}
-}
-
-function _avgRate(e) {
-  // rough average rate from tariff tiers for display purposes only
-  const tiers = e.tariff_tiers || [];
-  return tiers.length ? tiers[0].rate_rwf_per_kwh : 212;
-}
-
-async function doTopup() {
-  const amt = parseFloat(document.getElementById("topup-amount").value);
-  if (!amt || amt <= 0) return;
-  const res = await fetch("/energy/topup", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ amount_rwf: amt }),
-  });
-  const json = await res.json();
-  if (json.ok) {
-    topupMax = json.balance_kwh;
-    document.getElementById("topup-amount").value = "";
-    pollEnergy();
-  }
-}
-
-document.getElementById("topup-amount").addEventListener("keydown", e => { if (e.key === "Enter") doTopup(); });
-
-loadDevices();
-pollState();
-setInterval(pollState, 1500);
-
-document.getElementById("api-addr").textContent = window.location.origin;
-
-if (location.protocol !== "https:" && location.hostname !== "localhost") {
-  const s = document.getElementById("stt-status");
-  s.style.color = "#ffa834";
-  s.textContent = "⚠ mic needs HTTPS — run: python app.py --https";
-  const btn = document.getElementById("mic-btn");
-  btn.style.opacity = "0.35"; btn.style.cursor = "not-allowed";
-  btn.onclick = null;
-}
+/* INIT */
+loadDevices().then(pollState);
+loadProfile();
+setInterval(pollState, 2000);
 </script>
-
 </body>
 </html>

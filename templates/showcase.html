@@ -28,11 +28,77 @@
   html { scroll-behavior: auto; }
   body { background: var(--bg); color: var(--text); font-family: var(--sans); overflow-x: hidden; }
 
-  #scene-canvas { position: fixed; inset: 0; z-index: 0; display: block; }
+  #scene-section {
+    position: relative;
+    z-index: 5;
+    min-height: 900vh;
+    background: var(--bg);
+  }
+  #scene-canvas {
+    position: sticky;
+    top: 0;
+    width: 100%;
+    height: 100vh;
+    z-index: 0;
+    display: block;
+  }
   #vignette {
-    position: fixed; inset: 0; z-index: 1; pointer-events: none;
+    position: sticky; top: 0; height: 100vh; margin-top: -100vh; z-index: 1; pointer-events: none;
     background: radial-gradient(ellipse at center, transparent 40%, rgba(4,8,5,0.75) 100%);
   }
+
+  /* ---------- standalone hero: no 3D layer here ---------- */
+  #hero {
+    position: relative;
+    z-index: 8;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    padding: 96px 8vw 48px;
+    background:
+      radial-gradient(circle at 18% 18%, rgba(16,185,129,0.18), transparent 34%),
+      linear-gradient(135deg, #040805 0%, #07100a 52%, #040805 100%);
+  }
+  #hero .hero-copy { max-width: 760px; }
+  #hero .eyebrow {
+    display: inline-block;
+    margin-bottom: 18px;
+    color: var(--green);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+  #hero h1 {
+    max-width: 900px;
+    font-size: clamp(48px, 8vw, 106px);
+    line-height: 0.95;
+    letter-spacing: 0;
+    margin-bottom: 22px;
+  }
+  #hero p {
+    max-width: 580px;
+    color: #a7b7ad;
+    font-size: clamp(16px, 1.5vw, 20px);
+    line-height: 1.7;
+  }
+  #hero .hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 30px;
+  }
+  #hero .hero-actions a {
+    color: var(--text);
+    text-decoration: none;
+    font-family: var(--mono);
+    font-size: 11px;
+    border: 1px solid #27553c;
+    border-radius: 4px;
+    padding: 12px 16px;
+    background: rgba(10,18,11,0.76);
+  }
+  #hero .hero-actions a:first-child { color: #04100a; background: var(--green); border-color: var(--green); }
 
   /* ---------- top bar ---------- */
   #topbar {
@@ -80,7 +146,7 @@
   @keyframes dn { 0%,100%{transform:translateY(0);opacity:.4} 50%{transform:translateY(6px);opacity:1} }
 
   /* ---------- narrative sections ---------- */
-  #story { position: relative; z-index: 10; }
+  #story { position: relative; z-index: 10; margin-top: -100vh; }
   .beat {
     min-height: 100vh; display: flex; align-items: center; padding: 0 8vw;
     pointer-events: none;
@@ -122,9 +188,6 @@
 
 <div id="loading">Waking up FRIDAY<span class="dot">_</span></div>
 
-<canvas id="scene-canvas"></canvas>
-<div id="vignette"></div>
-
 <div id="topbar">
   <a href="/" class="logo">FRIDAY <span style="color:var(--text-dim);font-weight:400;">// AI for Smart Energy Management</span></a>
   <nav>
@@ -149,6 +212,23 @@
 </div>
 
 <div id="scrollhint"><span>SCROLL</span><span class="chev">⌄</span></div>
+
+<section id="hero">
+  <div class="hero-copy">
+    <span class="eyebrow">AI smart energy management</span>
+    <h1>FRIDAY makes your home think before energy gets wasted.</h1>
+    <p>Control devices, monitor electricity, and understand every room through a live digital twin. Scroll down to explore the house model and see the system build itself layer by layer.</p>
+    <div class="hero-actions">
+      <a href="/dashboard">Open Blueprint</a>
+      <a href="/threed">3D Walk</a>
+      <a href="/web">AI Tester</a>
+    </div>
+  </div>
+</section>
+
+<section id="scene-section">
+<canvas id="scene-canvas"></canvas>
+<div id="vignette"></div>
 
 <div id="story">
   <section class="beat" data-i="0">
@@ -276,6 +356,7 @@
     </div>
   </section>
 </div>
+</section>
 
 <script type="importmap">
 {
@@ -291,6 +372,15 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const API_BASE = '';
+const EMBED_MODE = new URLSearchParams(window.location.search).get('embed') === '1';
+if (EMBED_MODE) {
+  document.documentElement.classList.add('embed-mode');
+  document.getElementById('hero')?.remove();
+  document.getElementById('topbar')?.remove();
+  document.getElementById('rail')?.remove();
+  document.getElementById('scrollhint')?.remove();
+  document.getElementById('story')?.remove();
+}
 
 /* ================= floor-plan constants (shared with /threed) ================= */
 const S = 0.024;
@@ -356,8 +446,6 @@ const ground = new THREE.Mesh(
 ground.rotation.x = -Math.PI / 2;
 ground.position.y = -0.02;
 scene.add(ground);
-const grid = new THREE.GridHelper(200, 100, 0x123322, 0x0a1510);
-scene.add(grid);
 
 /* ================= layer groups ================= */
 const scanGroup = new THREE.Group(); scene.add(scanGroup);        // raw glb
@@ -561,11 +649,20 @@ function lerpStages(p) {
   return { cam: last.cam, look: last.look };
 }
 
+const sceneSection = document.getElementById('scene-section');
 let targetProgress = 0, smoothProgress = 0;
 function computeProgress() {
-  const max = document.body.scrollHeight - window.innerHeight;
-  targetProgress = max > 0 ? THREE.MathUtils.clamp(window.scrollY / max, 0, 1) : 0;
+  if (EMBED_MODE) return;
+  const sectionTop = sceneSection.offsetTop;
+  const max = sceneSection.offsetHeight - window.innerHeight;
+  targetProgress = max > 0 ? THREE.MathUtils.clamp((window.scrollY - sectionTop) / max, 0, 1) : 0;
 }
+window.addEventListener('message', (event) => {
+  if (!EMBED_MODE) return;
+  if (event.origin !== window.location.origin) return;
+  if (event.data?.type !== 'friday-3d-progress') return;
+  targetProgress = THREE.MathUtils.clamp(Number(event.data.progress) || 0, 0, 1);
+});
 window.addEventListener('scroll', computeProgress, { passive: true });
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
@@ -587,6 +684,7 @@ function updateBeats() {
   });
 }
 function updateRail(p) {
+  if (!railStages.length) return;
   const idx = Math.min(8, Math.floor(p * 9));
   railStages.forEach((el, i) => el.classList.toggle('active', i === idx));
 }
@@ -643,7 +741,8 @@ function updateLayers(p) {
 
   devicesGroup.children.forEach(c => { c.material.opacity = devVis; c.material.emissiveIntensity = devVis * (livePulse ? 1 : 0.5); });
 
-  document.getElementById('scrollhint').style.opacity = p > 0.03 ? 0 : 1;
+  const scrollhint = document.getElementById('scrollhint');
+  if (scrollhint) scrollhint.style.opacity = p > 0.03 ? 0 : 1;
 }
 
 
