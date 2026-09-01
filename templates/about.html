@@ -170,23 +170,35 @@
     }
 
     /* ---------- narrative sections (about content, matched to dark glass theme) ---------- */
-    .story-beat { min-height: 100vh; display: flex; align-items: center; padding: 6vh 8vw; }
-    .story-beat .copy { max-width: 520px; opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s ease; }
+    .story-beat { min-height: 100vh; display: flex; align-items: center; gap: 6vw; padding: 6vh 8vw; }
+    .story-beat.right { flex-direction: row-reverse; }
+    .story-beat .copy { flex: 1 1 460px; max-width: 520px; opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s ease; }
     .story-beat .copy.show { opacity: 1; transform: translateY(0); }
     .story-beat .eyebrow { font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600; color: #7C9CFF; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 14px; display: inline-block; }
     .story-beat h2 { font-size: clamp(28px, 4vw, 44px); line-height: 1.1; letter-spacing: -1px; margin-bottom: 16px; font-weight: 800; }
     .story-beat p { color: #9AA5C0; font-size: 15.5px; line-height: 1.7; max-width: 460px; }
-    .story-beat.right { justify-content: flex-end; }
-    .story-beat.right .copy { text-align: right; margin-left: auto; }
     .story-stat-row { display: flex; gap: 30px; margin-top: 24px; }
-    .story-beat.right .story-stat-row { justify-content: flex-end; }
     .story-stat b { display: block; font-size: 22px; font-weight: 700; color: #7C9CFF; }
     .story-stat span { font-size: 11px; color: #6B7593; }
     .story-feature-list { list-style: none; margin-top: 20px; display: flex; flex-direction: column; gap: 11px; max-width: 460px; }
-    .story-beat.right .story-feature-list { margin-left: auto; }
     .story-feature-list li { display: flex; align-items: baseline; gap: 10px; font-size: 14.5px; color: #E4E8F5; }
-    .story-beat.right .story-feature-list li { flex-direction: row-reverse; }
     .story-feature-list li::before { content: '—'; color: #7C9CFF; }
+
+    /* flat 2D visual column (replaces the old drop-shadow / hover-tilt card look) */
+    .story-visual { flex: 1 1 420px; display: flex; align-items: center; justify-content: center; }
+    .story-visual img {
+      width: 100%;
+      max-width: 480px;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
+      border-radius: 1.25rem;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      /* flat, no drop-shadow / no 3D tilt */
+    }
+    @media (max-width: 900px) {
+      .story-beat, .story-beat.right { flex-direction: column; }
+      .story-visual img { max-width: 100%; }
+    }
     #site-footer { border-top: 1px solid rgba(255,255,255,0.08); padding: 64px 8vw 32px; position: relative; z-index: 10; }
     #site-footer .footer-grid { display: flex; justify-content: space-between; gap: 48px; flex-wrap: wrap; max-width: 1100px; margin: 0 auto; }
     #site-footer .footer-brand p { color: #6B7593; font-size: 13.5px; max-width: 260px; line-height: 1.6; margin-top: 8px; }
@@ -382,7 +394,7 @@
 <!-- UI Cards Overlay -->
 <div class="absolute inset-0 w-full h-full z-10 hidden md:block">
 <!-- Electricity Usage Card -->
-<div class="glass-panel p-4 absolute top-[2%] right-[8%] w-[270px] transform translate-y-4 hover:-translate-y-2 transition-transform duration-300 backdrop-blur-xl bg-[#0a0f28]/70">
+<div class="glass-panel p-4 absolute top-[2%] right-[8%] w-[270px] transition-colors duration-300 backdrop-blur-xl bg-[#0a0f28]/70">
 <div class="flex items-center gap-2 mb-3 text-gray-300">
 <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
 <span class="text-sm font-medium">Electricity Usage</span>
@@ -401,7 +413,7 @@
 </div>
 </div>
 <!-- Living Room Light Card -->
-<div class="glass-panel p-4 absolute top-[45%] right-[-3%] w-[260px] transform -translate-y-1/2 translate-x-4 hover:translate-x-2 transition-transform duration-300 flex items-center justify-between gap-4 backdrop-blur-xl bg-[#0a0f28]/70">
+<div class="glass-panel p-4 absolute top-[45%] right-[-3%] w-[260px] -translate-y-1/2 transition-colors duration-300 flex items-center justify-between gap-4 backdrop-blur-xl bg-[#0a0f28]/70">
 <div class="flex-1">
 <h4 class="text-sm text-gray-300 mb-2">Living Room Light</h4>
 <div class="text-2xl font-bold text-blue-400 mb-3">80%</div>
@@ -416,7 +428,7 @@
 </div>
 </div>
 <!-- Security System Card -->
-<div class="glass-panel p-4 absolute bottom-[6%] right-[4%] w-[240px] transform translate-y-4 hover:-translate-y-2 transition-transform duration-300 flex items-center justify-between gap-4 backdrop-blur-xl bg-[#0a0f28]/70">
+<div class="glass-panel p-4 absolute bottom-[6%] right-[4%] w-[240px] transition-colors duration-300 flex items-center justify-between gap-4 backdrop-blur-xl bg-[#0a0f28]/70">
 <div>
 <h4 class="text-sm text-gray-300 mb-1">Security System</h4>
 <div class="text-green-400 font-medium text-lg">Active</div>
@@ -458,6 +470,7 @@
 <main id="story">
 
 <section class="story-beat">
+<div class="story-visual"><img alt="FRIDAY The problem" loading="lazy" src="images/1.png"/></div>
 <div class="copy">
 <span class="eyebrow">01 — The problem</span>
 <h2>The invisible problem.</h2>
@@ -471,6 +484,7 @@
 </section>
 
 <section class="story-beat right">
+<div class="story-visual"><img alt="FRIDAY The solution" loading="lazy" src="images/2.png"/></div>
 <div class="copy">
 <span class="eyebrow">02 — The solution</span>
 <h2>Meet FRIDAY.</h2>
@@ -485,6 +499,7 @@
 </section>
 
 <section class="story-beat">
+<div class="story-visual"><img alt="FRIDAY Core feature" loading="lazy" src="images/3.png"/></div>
 <div class="copy">
 <span class="eyebrow">03 — Core feature</span>
 <h2>Your house becomes alive.</h2>
@@ -498,6 +513,7 @@
 </section>
 
 <section class="story-beat right">
+<div class="story-visual"><img alt="FRIDAY Interface" loading="lazy" src="images/4.png"/></div>
 <div class="copy">
 <span class="eyebrow">04 — Interface</span>
 <h2>Interactive blueprint.</h2>
@@ -512,6 +528,7 @@
 </section>
 
 <section class="story-beat">
+<div class="story-visual"><img alt="FRIDAY Intelligence" loading="lazy" src="images/5.png"/></div>
 <div class="copy">
 <span class="eyebrow">05 — Intelligence</span>
 <h2>FRIDAY intelligence.</h2>
@@ -527,6 +544,7 @@
 </section>
 
 <section class="story-beat right">
+<div class="story-visual"><img alt="FRIDAY Connectivity" loading="lazy" src="images/6.png"/></div>
 <div class="copy">
 <span class="eyebrow">06 — Connectivity</span>
 <h2>Remote control — anywhere in the world.</h2>
@@ -541,6 +559,7 @@
 </section>
 
 <section class="story-beat">
+<div class="story-visual"><img alt="FRIDAY Architecture" loading="lazy" src="images/7.png"/></div>
 <div class="copy">
 <span class="eyebrow">07 — Architecture</span>
 <h2>Technology stack.</h2>
@@ -553,6 +572,7 @@
 </section>
 
 <section class="story-beat right">
+<div class="story-visual"><img alt="FRIDAY Differentiation" loading="lazy" src="images/8.png"/></div>
 <div class="copy">
 <span class="eyebrow">08 — Differentiation</span>
 <h2>Why FRIDAY is different.</h2>
@@ -569,6 +589,7 @@
 </section>
 
 <section class="story-beat" style="min-height: 100vh;">
+<div class="story-visual"><img alt="FRIDAY Vision" loading="lazy" src="images/9.png"/></div>
 <div class="copy">
 <span class="eyebrow">09 — Vision</span>
 <h2>The future of smart living starts here.</h2>

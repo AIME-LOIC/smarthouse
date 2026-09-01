@@ -26,7 +26,7 @@
   }
   * { box-sizing: border-box; }
   html, body {
-    margin: 0; height: 100%; width: 100%;
+    margin: 0; height: 100%; height: calc(var(--vh, 1vh) * 100); width: 100%;
     background: var(--bg);
     color: var(--text);
     font-family: var(--sans);
@@ -45,7 +45,12 @@
   ::-webkit-scrollbar-track { background: transparent; }
 
   /* ============ APP SHELL ============ */
-  .app { display: flex; height: 100vh; width: 100vw; position: relative; }
+  /* height: 100vh is unreliable on Android Chrome — it can compute against
+     the viewport with the URL bar collapsed, taller than what's actually
+     visible, which pushes the last flex child (the input bar) behind the
+     browser/system UI. --vh is set by JS below to the real visible height;
+     100dvh (dynamic viewport height) covers modern browsers directly. */
+  .app { display: flex; height: 100vh; height: calc(var(--vh, 1vh) * 100); height: 100dvh; width: 100vw; position: relative; }
 
   /* ============ SIDEBAR ============ */
   .sidebar {
@@ -300,6 +305,7 @@
   .mic-btn { background: rgba(255,255,255,0.05); border: 1px solid var(--panel-border); color: var(--text-dim); }
   .mic-btn:hover { border-color: var(--panel-border-hover); color: var(--accent-soft); }
   .mic-btn.listening { background: rgba(255,90,110,0.15); border-color: var(--danger); color: var(--danger); animation: pulse 1s infinite; }
+  .mic-btn.transcribing { background: rgba(124,156,255,0.15); border-color: var(--accent-soft); color: var(--accent-soft); cursor: wait; }
   @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,90,110,0.4); } 50% { box-shadow: 0 0 0 8px rgba(255,90,110,0); } }
   .send-btn { background: var(--accent-grad); color: #fff; box-shadow: 0 4px 14px rgba(79,114,255,0.35); }
   .send-btn:hover { filter: brightness(1.1); }
@@ -335,28 +341,50 @@
     color: var(--text-mute); font-family: var(--mono); font-size: 12px; gap: 8px;
   }
 
-  /* ---- 2D control view rendered inline inside modal ---- */
-  .plan2d-wrap { padding: 18px; display: grid; grid-template-columns: 2.2fr 1fr; gap: 16px; height: 100%; }
-  @media (max-width: 860px) { .plan2d-wrap { grid-template-columns: 1fr; overflow-y: auto; } }
-  .plan2d-card { background: #fdfdfd; border-radius: 10px; padding: 14px; overflow: auto; min-height: 400px; }
-  .plan2d-card svg { width: 100%; height: auto; display: block; }
+  /* ---- 2D control view rendered inline inside modal (ported from dashboard.html) ---- */
+  .plan2d-wrap { padding: 18px; display: flex; flex-direction: column; gap: 16px; height: 100%; overflow-y: auto; }
+  .plan2d-main { display: grid; grid-template-columns: 2.2fr 1fr; gap: 16px; }
+  @media (max-width: 860px) { .plan2d-main { grid-template-columns: 1fr; } }
+
+  .plan2d-blueprint { display: flex; flex-direction: column; gap: 14px; }
+  .plan2d-zone {
+    position: relative; width: 100%; background-color: #f7f9f8;
+    background-image: linear-gradient(to right, rgba(0,0,0,0.04) 1px, transparent 1px),
+                       linear-gradient(to bottom, rgba(0,0,0,0.04) 1px, transparent 1px);
+    background-size: 20px 20px; border: 2px dashed #a0aab0; border-radius: 6px; padding: 10px 8px 8px;
+  }
+  .plan2d-zone-label {
+    position: absolute; top: 8px; left: 10px; font-family: var(--mono); font-size: 9px; font-weight: 700;
+    color: #556066; letter-spacing: 1px; text-transform: uppercase; background: rgba(255,255,255,0.85);
+    padding: 2px 6px; border-radius: 3px; z-index: 5; border: 1px solid #ccd2d6;
+  }
+  .plan2d-zone svg { width: 100%; height: auto; display: block; }
   .plan2d-wall { fill: #1a1a1a; }
   .plan2d-window { fill: #aee2f3; stroke: #1a1a1a; stroke-width: 1; }
   .plan2d-hall { fill: #eef1ef; }
-  .plan2d-room-text { font-family: var(--mono); font-size: 12px; fill: #444; font-weight: 700; }
+  .plan2d-door-arc { fill: none; stroke: #888; stroke-width: 1; stroke-dasharray: 2,2; }
+  .plan2d-door-leaf { stroke: #222; stroke-width: 2.5; stroke-linecap: round; }
+  .plan2d-gate-bars { stroke: #d94040; stroke-width: 3; stroke-dasharray: 5,3; }
+  .plan2d-furniture { fill: none; stroke: #b5b5b5; stroke-width: 1; }
+  .plan2d-room-text { font-family: var(--mono); font-size: 12px; fill: #444; font-weight: 700; letter-spacing: 0.4px; }
   .plan2d-dim { font-family: var(--mono); font-size: 9px; fill: #999; }
-  .plan2d-relative { position: relative; }
-  
-  /* 2D Interactive Node Styles */
+  .plan2d-hallway-text { font-family: var(--mono); font-size: 10px; fill: #bbb; letter-spacing: 2px; }
+  .plan2d-hallway-sub { font-family: var(--mono); font-size: 9px; fill: #9fb8ac; letter-spacing: 1px; }
+
+  /* 2D Interactive Node Styles (real device nodes + status tags) */
   .p2d-node { position: absolute; transform: translate(-50%, -50%); z-index: 10; cursor: pointer; }
   .p2d-item {
-    padding: 3px 6px; border-radius: 6px; background: rgba(10, 15, 30, 0.85); border: 1.5px solid #444;
-    display: flex; align-items: center; justify-content: center; gap: 3px; font-size: 11px; color: #aaa;
-    font-family: var(--mono); transition: all 0.2s ease; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    width: 24px; height: 24px; border-radius: 50%; background: #333; border: 2px solid #111;
+    display: flex; align-items: center; justify-content: center; font-size: 11px; color: #666;
+    transition: all 0.25s cubic-bezier(0.4,0,0.2,1); box-shadow: 0 2px 6px rgba(0,0,0,0.3);
   }
-  .p2d-item.active { background: #fff; border-color: var(--accent-1); color: #000; box-shadow: 0 0 12px rgba(79,114,255,0.7); }
-  .p2d-item .symbol { font-size: 12px; }
-  .p2d-item .lbl { font-size: 8px; font-weight: 700; }
+  .p2d-item.active { background: var(--accent-soft, #7c9cff); border-color: #fff; color: #000; box-shadow: 0 0 12px rgba(124,156,255,0.7); }
+  .p2d-tag {
+    position: absolute; transform: translate(-50%, -50%); cursor: pointer; font-family: var(--mono);
+    font-size: 8.5px; font-weight: 600; padding: 3px 7px; background: rgba(15,20,16,0.92); color: #aaa;
+    border: 1px solid #333; border-radius: 4px; white-space: nowrap; z-index: 10; transition: all 0.2s ease;
+  }
+  .p2d-tag.active { background: #10213a; color: var(--accent-soft, #7c9cff); border-color: var(--accent-soft, #7c9cff); box-shadow: 0 0 10px rgba(124,156,255,0.35); }
 
   .plan2d-side { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
   .plan2d-panel { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px; padding: 12px; }
@@ -368,10 +396,60 @@
     background: rgba(255,255,255,0.03); color: var(--text-dim); cursor: pointer;
   }
   .p2d-toggle.on { color: var(--accent-soft); border-color: var(--accent-soft); background: rgba(124,156,255,0.1); }
+  .p2d-unplaced { color: var(--warn); font-weight: 900; }
 
   @media (max-width: 560px) {
-    .sidebar { position: absolute; height: 100%; width: 140px; }
+    .sidebar { position: absolute; height: 100%; width: 140px; z-index: 25; }
     .sidebar.collapsed { margin-left: -140px; }
+  }
+
+  /* ============ RESPONSIVE / MOBILE ============ */
+  @media (max-width: 640px) {
+    .msg { max-width: 92%; }
+    .cashpower-monitor { width: auto; max-width: 44vw; top: 8px; right: 8px; padding: 8px 10px; }
+    .cashpower-monitor .cp-title { font-size: 8px; }
+    .cashpower-monitor .cp-balance { font-size: 12px; }
+    .cashpower-monitor .cp-sub { font-size: 8px; }
+    .cp-bar-wrap { margin-top: 6px; }
+    .sidebar-show-btn { top: 10px; left: 10px; width: 32px; height: 32px; font-size: 14px; }
+    .chat-messages { padding: 60px 3% 12px; gap: 12px; }
+    .chat-input-bar { padding: 8px 3% calc(12px + env(safe-area-inset-bottom, 0px)); }
+    .chat-input-row { gap: 6px; padding: 5px; }
+    .plus-btn, .mic-btn, .send-btn { width: 36px; height: 36px; font-size: 14px; }
+    .input-wrap { height: 36px; }
+    .chat-input-row input[type=text] { height: 36px; font-size: 16px; } /* 16px avoids iOS zoom-on-focus */
+    .bubble { font-size: 13px; padding: 10px 12px; }
+    .view-popup { min-width: 150px; }
+    .modal-box { width: 100vw; height: 100vh; border-radius: 0; }
+    .modal-head { padding: 10px 12px; }
+    .plan2d-wrap { padding: 10px; gap: 10px; }
+
+    /* The SVG floor plan scales, but its overlay icons/tags (.p2d-item,
+       .p2d-tag) are fixed-size HTML elements, not part of the SVG — so
+       shrinking the plan to fit a phone makes the controls overlap and
+       become untappable. Instead, lock the plan to a legible minimum
+       width and let the user pan it horizontally, keeping icons/tags at
+       a size that's actually usable with a finger. */
+    .plan2d-blueprint { overflow-x: auto; -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity; margin: 0 -10px; padding: 0 10px; }
+    .plan2d-zone { min-width: 560px; scroll-snap-align: start; }
+    .plan2d-zone-label::after { content: ' ← scroll to pan →'; opacity: 0.6; font-weight: 400; text-transform: none; letter-spacing: 0; }
+  }
+
+  @media (max-width: 420px) {
+    .cashpower-monitor { max-width: 50vw; }
+    .msg .avatar { width: 22px; height: 22px; font-size: 10px; }
+    .plus-btn, .mic-btn, .send-btn { width: 34px; height: 34px; }
+  }
+
+  @media (max-width: 640px) {
+    .p2d-item { width: 28px; height: 28px; font-size: 13px; }
+    .p2d-tag { font-size: 9.5px; padding: 4px 8px; }
+  }
+
+  /* Landscape phones / short viewports: keep the input bar reachable */
+  @media (max-height: 480px) and (max-width: 900px) {
+    .chat-messages { padding-top: 54px; }
+    .chat-input-bar { padding-top: 6px; padding-bottom: 6px; }
   }
 </style>
 </head>
@@ -444,6 +522,7 @@
           </div>
         </div>
 
+        <button class="mic-btn" id="speakBtn" title="Toggle spoken replies" onclick="toggleSpeak()">🔊</button>
         <button class="mic-btn" id="micBtn" title="Voice input" onclick="toggleMic()">🎤</button>
         <button class="send-btn" id="sendBtn" title="Send" onclick="sendMessage()">➤</button>
       </div>
@@ -464,63 +543,44 @@
 
 <script>
 /* ===================================================================
+   REAL VIEWPORT HEIGHT — fixes Android Chrome hiding the input bar
+   behind the system nav bar / collapsed URL bar. Sets --vh to the true
+   visible height; .app uses calc(var(--vh) * 100) as a fallback for
+   browsers that don't support 100dvh yet.
+   =================================================================== */
+function setRealVh() {
+  const h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+  document.documentElement.style.setProperty('--vh', `${h * 0.01}px`);
+}
+setRealVh();
+window.addEventListener('resize', setRealVh);
+window.addEventListener('orientationchange', () => setTimeout(setRealVh, 100));
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', setRealVh);
+}
+
+/* ===================================================================
    DEVICE / ENERGY STATE — shared across sidebar, cash-power, 2D modal
    =================================================================== */
 // Master state initializations including Living Room (5 Bulbs, 4 Sockets, TV), Main Hall (3 Bulbs), Each Room (1 Socket, 1 Bulb each)
+// Populated for real from GET /devices and /state (loadDevices/pollState below) — this is
+// just a safe fallback so the UI has something to render before the first fetch resolves.
 let deviceStates = {
-  // Sidebar Devices
-  'phone': 'off', 'tv': 'off', 'laptop': 'off',
-  
-  // Living Room Devices (5 Bulbs, 4 Sockets, TV)
-  'light_living_1': 'off', 'light_living_2': 'off', 'light_living_3': 'off', 'light_living_4': 'off', 'light_living_5': 'off',
-  'socket_living_1': 'off', 'socket_living_2': 'off', 'socket_living_3': 'off', 'socket_living_4': 'off',
-  'tv_living': 'off',
-
-  // Mainhall / Hallway (3 Bulbs)
-  'light_hall_1': 'off', 'light_hall_2': 'off', 'light_hall_3': 'off',
-
-  // Room 1 (Guest) (1 Bulb, 1 Socket)
-  'light_guest': 'off', 'socket_guest': 'off',
-
-  // Kitchen & Dining (1 Bulb, 1 Socket)
-  'light_kitchen': 'off', 'socket_kitchen': 'off',
-
-  // Room 3 (1 Bulb, 1 Socket)
-  'light_room3': 'off', 'socket_room3': 'off',
-
-  // Bathroom (1 Bulb, 1 Socket)
-  'light_bathroom': 'off', 'socket_bathroom': 'off',
-
-  // Room 2 (Study) (1 Bulb, 1 Socket)
-  'light_study': 'off', 'socket_study': 'off',
-
-  // Room 4 (Master) (1 Bulb, 1 Socket)
-  'light_master': 'off', 'socket_master': 'off'
+  'phone': 'off', 'laptop': 'off'
 };
 
 let deviceTypes = {
-  'phone': 'phone', 'tv': 'tv', 'laptop': 'laptop',
-  'tv_living': 'tv',
-  'light_living_1': 'light', 'light_living_2': 'light', 'light_living_3': 'light', 'light_living_4': 'light', 'light_living_5': 'light',
-  'socket_living_1': 'socket', 'socket_living_2': 'socket', 'socket_living_3': 'socket', 'socket_living_4': 'socket',
-  'light_hall_1': 'light', 'light_hall_2': 'light', 'light_hall_3': 'light',
-  'light_guest': 'light', 'socket_guest': 'socket',
-  'light_kitchen': 'light', 'socket_kitchen': 'socket',
-  'light_room3': 'light', 'socket_room3': 'socket',
-  'light_bathroom': 'light', 'socket_bathroom': 'socket',
-  'light_study': 'light', 'socket_study': 'socket',
-  'light_master': 'light', 'socket_master': 'socket'
+  'phone': 'phone', 'laptop': 'laptop'
 };
 
 let deviceMeta = {
   'phone': { label: 'Phone', icon: '📱' },
-  'tv': { label: 'TV', icon: '📺' },
   'laptop': { label: 'Laptop', icon: '💻' }
 };
 
 let topupMax = 0;
 
-const ICONS = { light: '💡', socket: '🔌', tv: '📺', phone: '📱', laptop: '💻', door: '🚪', gate: '🛡️' };
+const ICONS = { light: '💡', socket: '🔌', appliance: '🔌', tv: '📺', phone: '📱', laptop: '💻', door: '🚪', gate: '🛡️', valve: '🚰' };
 
 function prettyLabel(id) {
   if (deviceMeta[id]?.label) return deviceMeta[id].label;
@@ -532,6 +592,19 @@ function toggleSidebar() {
   const sidebar = document.getElementById('sidebar');
   sidebar.classList.toggle('collapsed');
 }
+
+const MOBILE_BREAKPOINT = 560;
+let userToggledSidebar = false;
+function applyResponsiveSidebar() {
+  if (userToggledSidebar) return; // respect an explicit user choice this session
+  const sidebar = document.getElementById('sidebar');
+  sidebar.classList.toggle('collapsed', window.innerWidth <= MOBILE_BREAKPOINT);
+}
+document.getElementById('sidebar').addEventListener('transitionend', () => {}); // no-op, keeps CSS transition intact
+document.querySelector('.sidebar-hide-btn').addEventListener('click', () => userToggledSidebar = true);
+document.querySelector('.sidebar-show-btn').addEventListener('click', () => userToggledSidebar = true);
+window.addEventListener('resize', applyResponsiveSidebar);
+applyResponsiveSidebar();
 
 async function loadDevices() {
   try {
@@ -575,9 +648,15 @@ function renderSidebarDevices() {
   }).join('');
 }
 
+const OPEN_CLOSE_TYPES = ['door', 'gate', 'valve'];
+
 async function toggleDevice(id) {
-  const current = deviceStates[id] || 'off';
-  const nextAction = current === 'on' ? 'off' : 'on';
+  const type = deviceTypes[id];
+  const usesOpenClose = OPEN_CLOSE_TYPES.includes(type);
+  const current = deviceStates[id] || (usesOpenClose ? 'close' : 'off');
+  const nextAction = usesOpenClose
+    ? (current === 'open' ? 'close' : 'open')
+    : (current === 'on' ? 'off' : 'on');
   deviceStates[id] = nextAction;
   
   renderSidebarDevices();
@@ -669,6 +748,49 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
 
+function buildReplyText(data) {
+  if (!data.ok) {
+    return data.error || data.reasoning || "Sorry, I couldn't do that.";
+  }
+  if (Array.isArray(data.executed_commands) && data.executed_commands.length) {
+    const lines = data.executed_commands.map(c => {
+      const label = prettyLabel(c.device);
+      if (c.blocked) return `${label}: ${c.error || 'blocked — insufficient balance'}`;
+      if (c.scheduled) return `${label} will ${c.action} in ${c.delay_seconds}s${c.reasoning ? ' — ' + c.reasoning : ''}`;
+      return `${label} → ${c.action}${c.reasoning ? ' — ' + c.reasoning : ''}`;
+    });
+    return data.reply ? `${data.reply}\n${lines.join('\n')}` : lines.join('\n');
+  }
+  if (data.reply) return data.reply;
+  if (data.note) return data.note;
+  return 'Done.';
+}
+
+let speakEnabled = true;
+function toggleSpeak() {
+  speakEnabled = !speakEnabled;
+  document.getElementById('speakBtn').textContent = speakEnabled ? '🔊' : '🔇';
+  document.getElementById('speakBtn').classList.toggle('listening', !speakEnabled);
+}
+
+async function speak(text) {
+  if (!speakEnabled || !text) return;
+  try {
+    const res = await fetch('/voice/speak', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) { console.error('TTS request failed:', res.status); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.onended = () => URL.revokeObjectURL(url);
+    audio.play().catch(e => console.error('TTS playback blocked:', e));
+  } catch (e) {
+    console.error('TTS error:', e);
+  }
+}
+
 async function sendMessage() {
   const text = chatInput.value.trim();
   if (!text) return;
@@ -685,10 +807,11 @@ async function sendMessage() {
       body: JSON.stringify({ transcript: text }),
     });
     const data = await res.json();
-    const reply = data.response || data.message || data.reply || JSON.stringify(data, null, 2);
+    const reply = buildReplyText(data);
     const thinkEl = document.getElementById(thinkingId);
     thinkEl.classList.remove('thinking');
-    thinkEl.querySelector('.bubble').innerHTML = escapeHtml(reply);
+    thinkEl.querySelector('.bubble').innerHTML = escapeHtml(reply).replace(/\n/g, '<br>');
+    speak(reply);
   } catch (e) {
     const thinkEl = document.getElementById(thinkingId);
     thinkEl.classList.remove('thinking');
@@ -740,147 +863,236 @@ function closeModal() {
 function build2DPlan() {
   return `
   <div class="plan2d-wrap">
-    <div class="plan2d-card plan2d-relative" id="plan2dCard">
-      <svg viewBox="0 0 1000 610" xmlns="http://www.w3.org/2000/svg">
-        <path d="M 60,60 L 940,60 L 940,570 L 460,570 L 460,554 L 924,554 L 924,76 L 76,76 L 76,554 L 400,554 L 400,570 L 60,570 Z"
-              class="plan2d-wall" fill-rule="evenodd" />
-        <rect x="76" y="300" width="848" height="90" class="plan2d-hall" />
-        <text x="460" y="349" class="plan2d-dim" text-anchor="middle" letter-spacing="2">MAIN HALLWAY</text>
-        <rect x="76"  y="300" width="84"  height="14" class="plan2d-wall" />
-        <rect x="200" y="300" width="150" height="14" class="plan2d-wall" />
-        <rect x="390" y="300" width="190" height="14" class="plan2d-wall" />
-        <rect x="620" y="300" width="180" height="14" class="plan2d-wall" />
-        <rect x="840" y="300" width="84"  height="14" class="plan2d-wall" />
-        <rect x="76"  y="376" width="414" height="14" class="plan2d-wall" />
-        <rect x="620" y="376" width="180" height="14" class="plan2d-wall" />
-        <rect x="840" y="376" width="84"  height="14" class="plan2d-wall" />
-        <rect x="266" y="76" width="14" height="224" class="plan2d-wall" />
-        <rect x="490" y="76" width="14" height="224" class="plan2d-wall" />
-        <rect x="704" y="76" width="14" height="224" class="plan2d-wall" />
-        <rect x="490" y="390" width="14" height="164" class="plan2d-wall" />
-        <rect x="704" y="390" width="14" height="164" class="plan2d-wall" />
-        <rect x="120" y="60" width="90"  height="14" class="plan2d-window" />
-        <rect x="340" y="60" width="100" height="14" class="plan2d-window" />
-        <rect x="560" y="60" width="80"  height="14" class="plan2d-window" />
-        <rect x="780" y="60" width="90"  height="14" class="plan2d-window" />
-        <text x="100" y="210" class="plan2d-room-text">ROOM 1 · GUEST</text>
-        <text x="310" y="210" class="plan2d-room-text">KITCHEN &amp; DINING</text>
-        <text x="530" y="210" class="plan2d-room-text">ROOM 3</text>
-        <text x="745" y="210" class="plan2d-room-text">BATHROOM</text>
-        <text x="100" y="410" class="plan2d-room-text">LIVING ROOM</text>
-        <text x="530" y="410" class="plan2d-room-text">ROOM 2 · STUDY</text>
-        <text x="745" y="410" class="plan2d-room-text">ROOM 4 · MASTER</text>
-      </svg>
-      <div id="plan2dNodes"></div>
-    </div>
-    <div class="plan2d-side">
-      <div class="plan2d-panel">
-        <h3>2D Controls &amp; All Devices</h3>
-        <div id="plan2dDeviceList"></div>
+    <div class="plan2d-main">
+      <div class="plan2d-blueprint">
+
+        <!-- ZONE 1: MAIN HOUSE -->
+        <div class="plan2d-zone" id="plan2dHouseZone">
+          <div class="plan2d-zone-label">Main House Interior</div>
+          <svg class="cad-plan" viewBox="0 0 1000 610" xmlns="http://www.w3.org/2000/svg">
+            <path d="M 60,60 L 940,60 L 940,570 L 460,570 L 460,554 L 924,554 L 924,76 L 76,76 L 76,554 L 400,554 L 400,570 L 60,570 Z"
+                  class="plan2d-wall" fill-rule="evenodd" />
+            <rect x="76" y="300" width="848" height="90" class="plan2d-hall" />
+            <text x="460" y="349" class="plan2d-hallway-text" text-anchor="middle">HALLWAY / CIRCULATION</text>
+            <text x="460" y="364" class="plan2d-hallway-sub" text-anchor="middle">≈ 1.5 m clear width</text>
+            <rect x="76"  y="300" width="84"  height="14" class="plan2d-wall" />
+            <rect x="200" y="300" width="150" height="14" class="plan2d-wall" />
+            <rect x="390" y="300" width="190" height="14" class="plan2d-wall" />
+            <rect x="620" y="300" width="180" height="14" class="plan2d-wall" />
+            <rect x="840" y="300" width="84"  height="14" class="plan2d-wall" />
+            <rect x="76"  y="376" width="414" height="14" class="plan2d-wall" />
+            <rect x="620" y="376" width="180" height="14" class="plan2d-wall" />
+            <rect x="840" y="376" width="84"  height="14" class="plan2d-wall" />
+            <rect x="266" y="76" width="14" height="224" class="plan2d-wall" />
+            <rect x="490" y="76" width="14" height="224" class="plan2d-wall" />
+            <rect x="704" y="76" width="14" height="224" class="plan2d-wall" />
+            <rect x="490" y="390" width="14" height="164" class="plan2d-wall" />
+            <rect x="704" y="390" width="14" height="164" class="plan2d-wall" />
+            <rect x="120" y="60" width="90"  height="14" class="plan2d-window" />
+            <rect x="340" y="60" width="100" height="14" class="plan2d-window" />
+            <rect x="560" y="60" width="80"  height="14" class="plan2d-window" />
+            <rect x="780" y="60" width="90"  height="14" class="plan2d-window" />
+            <rect x="60" y="140" width="14" height="90"  class="plan2d-window" />
+            <rect x="60" y="440" width="14" height="90"  class="plan2d-window" />
+            <rect x="926" y="120" width="14" height="80" class="plan2d-window" />
+            <rect x="926" y="440" width="14" height="80" class="plan2d-window" />
+            <path d="M 200,314 A 40,40 0 0,1 160,354" class="plan2d-door-arc" />
+            <line x1="160" y1="314" x2="160" y2="354" class="plan2d-door-leaf" />
+            <path d="M 390,314 A 40,40 0 0,1 350,354" class="plan2d-door-arc" />
+            <line x1="350" y1="314" x2="350" y2="354" class="plan2d-door-leaf" />
+            <path d="M 620,314 A 40,40 0 0,1 580,354" class="plan2d-door-arc" />
+            <line x1="580" y1="314" x2="580" y2="354" class="plan2d-door-leaf" />
+            <path d="M 840,314 A 40,40 0 0,1 800,354" class="plan2d-door-arc" />
+            <line x1="800" y1="314" x2="800" y2="354" class="plan2d-door-leaf" />
+            <path d="M 620,376 A 40,40 0 0,0 580,336" class="plan2d-door-arc" />
+            <line x1="580" y1="376" x2="580" y2="336" class="plan2d-door-leaf" />
+            <path d="M 840,376 A 40,40 0 0,0 800,336" class="plan2d-door-arc" />
+            <line x1="800" y1="376" x2="800" y2="336" class="plan2d-door-leaf" />
+            <path d="M 460,554 A 60,60 0 0,0 400,494" class="plan2d-door-arc" />
+            <line x1="400" y1="554" x2="400" y2="494" class="plan2d-door-leaf" />
+            <rect x="100" y="410" width="60" height="110" rx="4" class="plan2d-furniture" />
+            <rect x="190" y="480" width="130" height="50" rx="4" class="plan2d-furniture" />
+            <rect x="185" y="410" width="140" height="45" class="plan2d-furniture" />
+            <rect x="300" y="90" width="180" height="36" class="plan2d-furniture" />
+            <circle cx="330" cy="108" r="8" class="plan2d-furniture" />
+            <circle cx="360" cy="108" r="8" class="plan2d-furniture" />
+            <rect x="310" y="150" width="100" height="46" rx="2" class="plan2d-furniture" />
+            <rect x="760" y="430" width="140" height="100" rx="4" class="plan2d-furniture" />
+            <rect x="530" y="500" width="130" height="36" class="plan2d-furniture" />
+            <rect x="100" y="100" width="120" height="90" rx="4" class="plan2d-furniture" />
+            <rect x="530" y="90" width="120" height="80" rx="4" class="plan2d-furniture" />
+            <rect x="750" y="100" width="120" height="90" rx="4" class="plan2d-furniture" />
+            <text x="100" y="210" class="plan2d-room-text">ROOM 1 · GUEST</text>
+            <text x="310" y="210" class="plan2d-room-text">KITCHEN &amp; DINING</text>
+            <text x="530" y="210" class="plan2d-room-text">ROOM 3</text>
+            <text x="745" y="210" class="plan2d-room-text">BATHROOM</text>
+            <text x="100" y="400" class="plan2d-room-text">LIVING ROOM</text>
+            <text x="530" y="410" class="plan2d-room-text">ROOM 2 · STUDY</text>
+            <text x="745" y="410" class="plan2d-room-text">ROOM 4 · MASTER</text>
+          </svg>
+
+          ${Object.entries(NODE_POS).map(([id, pos]) => `<div class="p2d-node" style="top:${pos.top}; left:${pos.left};" onclick="toggleDevice('${id}')" title="${prettyLabel(id)}">
+            <div class="p2d-item" id="icon-${id}">${pos.icon}</div>
+          </div>`).join('')}
+          ${Object.entries(TAG_POS).map(([id, pos]) => `<div class="p2d-tag" id="tag-${id}" style="top:${pos.top}; left:${pos.left};" onclick="toggleDevice('${id}')">${pos.label}: <span id="tagstate-${id}">${pos.offLabel}</span></div>`).join('')}
+        </div>
+
+        <!-- ZONE 2: MAIN GATE / OUTDOOR COMPOUND -->
+        <div class="plan2d-zone" id="plan2dGateZone">
+          <div class="plan2d-zone-label">Outdoor Main Gate Compound</div>
+          <svg class="cad-plan" viewBox="0 0 1000 160" xmlns="http://www.w3.org/2000/svg">
+            <rect x="60" y="30" width="880" height="100" fill="none" stroke="#1a1a1a" stroke-width="12" rx="4" />
+            <rect x="360" y="24" width="280" height="20" fill="#fdfdfd" />
+            <line x1="360" y1="30" x2="640" y2="30" class="plan2d-gate-bars" />
+            <line x1="360" y1="50" x2="360" y2="130" stroke="#ccc" stroke-dasharray="4,4" stroke-width="1.5" />
+            <line x1="640" y1="50" x2="640" y2="130" stroke="#ccc" stroke-dasharray="4,4" stroke-width="1.5" />
+            <text x="500" y="70" class="plan2d-room-text" fill="#d94040" text-anchor="middle">MAIN ENTRANCE GATEWAY</text>
+            <text x="500" y="88" class="plan2d-dim" text-anchor="middle">AUTOMATED ACCESS CONTROL</text>
+          </svg>
+          <div class="p2d-node" style="top: 30%; left: 28%;" onclick="toggleDevice('light_gate')" title="Gate Light">
+            <div class="p2d-item" id="icon-light_gate">💡</div>
+          </div>
+          <div class="p2d-tag" id="tag-gate_main" style="top: 30%; left: 50%;" onclick="toggleDevice('gate_main')">MAIN GATE: <span id="tagstate-gate_main">CLOSE</span></div>
+        </div>
+
+      </div>
+      <div class="plan2d-side">
+        <div class="plan2d-panel">
+          <h3>2D Controls &amp; All Devices</h3>
+          <div id="plan2dDeviceList"></div>
+        </div>
       </div>
     </div>
   </div>`;
 }
 
-/* Positions for 2D Interactive Placement */
+/* Real device node positions — matches the backend's DEVICES ids exactly (see app.py) */
 const NODE_POS = {
-  // Living room: 5 Bulbs, 4 Sockets, TV
-  light_living_1: { top: '72%', left: '12%', label: 'B1', icon: '💡' },
-  light_living_2: { top: '72%', left: '22%', label: 'B2', icon: '💡' },
-  light_living_3: { top: '72%', left: '32%', label: 'B3', icon: '💡' },
-  light_living_4: { top: '85%', left: '15%', label: 'B4', icon: '💡' },
-  light_living_5: { top: '85%', left: '30%', label: 'B5', icon: '💡' },
-  socket_living_1: { top: '78%', left: '10%', label: 'S1', icon: '🔌' },
-  socket_living_2: { top: '78%', left: '20%', label: 'S2', icon: '🔌' },
-  socket_living_3: { top: '78%', left: '30%', label: 'S3', icon: '🔌' },
-  socket_living_4: { top: '78%', left: '40%', label: 'S4', icon: '🔌' },
-  tv_living: { top: '88%', left: '22%', label: 'TV', icon: '📺' },
+  light_living_top_left:     { top: '68.6%', left: '15%',  icon: '💡' },
+  light_living_top_right:    { top: '68.6%', left: '34%',  icon: '💡' },
+  light_living_center:       { top: '77.2%', left: '28%',  icon: '💡' },
+  light_living_bottom_left:  { top: '85.7%', left: '15%',  icon: '💡' },
+  light_living_bottom_right: { top: '85.7%', left: '34%',  icon: '💡' },
+  socket_living_1:           { top: '73%',   left: '10%',  icon: '🔌' },
+  socket_living_2:           { top: '73%',   left: '20%',  icon: '🔌' },
+  socket_living_3:           { top: '90%',   left: '10%',  icon: '🔌' },
+  socket_living_4:           { top: '90%',   left: '20%',  icon: '🔌' },
+  tv:                        { top: '80%',   left: '22%',  icon: '📺' },
+  fridge:                    { top: '18%',   left: '33%',  icon: '🧊' },
+  microwave:                 { top: '28%',   left: '33%',  icon: '📡' },
+  water_heater:               { top: '23%',   left: '81.5%', icon: '🔥' },
+  light_kitchen:              { top: '23.8%', left: '38.5%', icon: '💡' },
+  socket_room_1:              { top: '25%',   left: '10%',  icon: '🔌' },
+  light_room_1:                { top: '30.4%', left: '17.1%', icon: '💡' },
+  socket_room_2:              { top: '82%',   left: '58%',  icon: '🔌' },
+  light_room_2:                { top: '77.2%', left: '60.4%', icon: '💡' },
+  socket_room_3:              { top: '25%',   left: '55%',  icon: '🔌' },
+  light_room_3:                { top: '30.4%', left: '60.4%', icon: '💡' },
+  socket_room_4:              { top: '82%',   left: '78%',  icon: '🔌' },
+  light_room_4:                { top: '77.2%', left: '82.1%', icon: '💡' },
+  light_hallway_1:             { top: '56%',   left: '25%',  icon: '💡' },
+  light_hallway_2:             { top: '56%',   left: '50%',  icon: '💡' },
+  light_hallway_3:             { top: '56%',   left: '75%',  icon: '💡' }
+};
 
-  // Mainhall: 3 Bulbs
-  light_hall_1: { top: '56%', left: '25%', label: 'H1', icon: '💡' },
-  light_hall_2: { top: '56%', left: '50%', label: 'H2', icon: '💡' },
-  light_hall_3: { top: '56%', left: '75%', label: 'H3', icon: '💡' },
-
-  // Room 1 (Guest): 1 Bulb, 1 Socket
-  light_guest: { top: '22%', left: '15%', label: 'Bulb', icon: '💡' },
-  socket_guest: { top: '35%', left: '15%', label: 'Socket', icon: '🔌' },
-
-  // Kitchen: 1 Bulb, 1 Socket
-  light_kitchen: { top: '22%', left: '38%', label: 'Bulb', icon: '💡' },
-  socket_kitchen: { top: '35%', left: '38%', label: 'Socket', icon: '🔌' },
-
-  // Room 3: 1 Bulb, 1 Socket
-  light_room3: { top: '22%', left: '60%', label: 'Bulb', icon: '💡' },
-  socket_room3: { top: '35%', left: '60%', label: 'Socket', icon: '🔌' },
-
-  // Bathroom: 1 Bulb, 1 Socket
-  light_bathroom: { top: '22%', left: '82%', label: 'Bulb', icon: '💡' },
-  socket_bathroom: { top: '35%', left: '82%', label: 'Socket', icon: '🔌' },
-
-  // Room 2 (Study): 1 Bulb, 1 Socket
-  light_study: { top: '75%', left: '60%', label: 'Bulb', icon: '💡' },
-  socket_study: { top: '88%', left: '60%', label: 'Socket', icon: '🔌' },
-
-  // Room 4 (Master): 1 Bulb, 1 Socket
-  light_master: { top: '75%', left: '82%', label: 'Bulb', icon: '💡' },
-  socket_master: { top: '88%', left: '82%', label: 'Socket', icon: '🔌' }
+/* Real status tags (doors, gate, valve) — clickable, matches backend ids */
+const TAG_POS = {
+  valve_kitchen:        { top: '30.4%', left: '43%', label: '🚰 KITCHEN VALVE', offLabel: 'CLOSE' },
+  door_room_1:          { top: '51.3%', left: '18%', label: 'ROOM 1', offLabel: 'CLOSE' },
+  door_kitchen:         { top: '51.3%', left: '37%', label: 'KITCHEN', offLabel: 'CLOSE' },
+  door_room_3:          { top: '51.3%', left: '60%', label: 'ROOM 3', offLabel: 'CLOSE' },
+  door_living_room:     { top: '96%',   left: '43%', label: 'LIVING MAIN DOOR', offLabel: 'CLOSE' },
+  door_living_hallway: { top: '62%',   left: '46%', label: 'LIVING ↔ HALL', offLabel: 'CLOSE' },
+  door_room_2:          { top: '61%',   left: '60%', label: 'ROOM 2', offLabel: 'CLOSE' },
+  door_room_4:          { top: '61%',   left: '82%', label: 'MASTER', offLabel: 'CLOSE' }
 };
 
 function render2DModal() {
-  const nodesEl = document.getElementById('plan2dNodes');
   const listEl = document.getElementById('plan2dDeviceList');
-  if (!nodesEl || !listEl) return;
-
   const ids = Object.keys(deviceStates);
 
-  // Render on 2D map
-  nodesEl.innerHTML = ids.filter(id => NODE_POS[id]).map(id => {
-    const isOn = deviceStates[id] === 'on';
-    const pos = NODE_POS[id];
-    return `<div class="p2d-node" style="top:${pos.top}; left:${pos.left};" onclick="toggleDevice('${id}')" title="${prettyLabel(id)}">
-      <div class="p2d-item ${isOn ? 'active' : ''}">
-        <span class="symbol">${pos.icon}</span>
-        <span class="lbl">${pos.label}</span>
-      </div>
-    </div>`;
-  }).join('');
+  // Update device nodes (lights/sockets/appliances) on the map
+  Object.keys(NODE_POS).forEach(id => {
+    const icon = document.getElementById(`icon-${id}`);
+    if (icon) icon.classList.toggle('active', deviceStates[id] === 'on');
+  });
 
-  // Render right panel full list
+  // Update status tags (doors, valve) on the map
+  Object.keys(TAG_POS).forEach(id => {
+    const tag = document.getElementById(`tag-${id}`);
+    const stateEl = document.getElementById(`tagstate-${id}`);
+    if (tag && stateEl) {
+      const state = deviceStates[id] || 'close';
+      stateEl.textContent = state.toUpperCase();
+      tag.classList.toggle('active', state === 'open' || state === 'on');
+    }
+  });
+
+  // Gate is on its own zone, same pattern
+  const gateTag = document.getElementById('tag-gate_main');
+  const gateState = document.getElementById('tagstate-gate_main');
+  if (gateTag && gateState) {
+    const state = deviceStates['gate_main'] || 'close';
+    gateState.textContent = state.toUpperCase();
+    gateTag.classList.toggle('active', state === 'open');
+  }
+
+  // Right panel: full device list — this already includes every device from
+  // the backend regardless of whether it also has a position on the floor
+  // plan. Flag any device that ISN'T placed on the map yet, so a future
+  // device added to app.py can't silently go missing from the visual plan
+  // without at least being visible here.
+  if (!listEl) return;
+  const placedOnMap = new Set([...Object.keys(NODE_POS), ...Object.keys(TAG_POS), 'light_gate', 'gate_main']);
   listEl.innerHTML = ids.map(id => {
-    const isOn = deviceStates[id] === 'on';
     const type = deviceTypes[id] || 'light';
+    const isOnState = ['on', 'open'].includes(deviceStates[id]);
     const icon = ICONS[type] || '⚙️';
+    const unplaced = !placedOnMap.has(id);
     return `<div class="p2d-device-row">
-      <span>${icon} ${prettyLabel(id)}</span>
-      <button class="p2d-toggle ${isOn ? 'on' : ''}" onclick="toggleDevice('${id}')">${isOn ? 'ON' : 'OFF'}</button>
+      <span>${icon} ${prettyLabel(id)}${unplaced ? ' <span class="p2d-unplaced" title="Not yet positioned on the floor plan">•</span>' : ''}</span>
+      <button class="p2d-toggle ${isOnState ? 'on' : ''}" onclick="toggleDevice('${id}')">${(deviceStates[id] || 'off').toUpperCase()}</button>
     </div>`;
   }).join('');
 }
 
 /* ===================================================================
-   VOICE
+   VOICE — records mic audio and transcribes it via ElevenLabs
+   Speech-to-Text (POST /voice/transcribe), instead of the browser's
+   built-in SpeechRecognition (which is Chrome-only and often unreliable).
    =================================================================== */
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-let recognition = null, listening = false;
+let mediaRecorder = null, recordedChunks = [], listening = false, transcribing = false;
+const micSupported = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
 
-if (SpeechRecognition) {
-  recognition = new SpeechRecognition();
-  recognition.lang = 'en-US';
-  recognition.onresult = (e) => {
-    chatInput.value = Array.from(e.results).map(r => r[0].transcript).join('');
-    if (e.results[e.results.length - 1].isFinal) { stopMic(); sendMessage(); }
-  };
-  recognition.onerror = () => stopMic();
-}
+async function toggleMic() {
+  if (transcribing) return;
+  if (listening) {
+    stopMic();
+    return;
+  }
+  if (!micSupported) {
+    alert('Microphone recording is not supported in this browser.');
+    return;
+  }
 
-function toggleMic() {
-  if (!recognition) return;
-  if (listening) stopMic();
-  else {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    recordedChunks = [];
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
+    mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+
+    mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
+    mediaRecorder.onstop = () => {
+      stream.getTracks().forEach(t => t.stop());
+      transcribeRecording();
+    };
+
+    mediaRecorder.start();
     listening = true;
     document.getElementById('micBtn').classList.add('listening');
     document.getElementById('waveBox').classList.add('active');
-    recognition.start();
+  } catch (e) {
+    alert('Could not access the microphone. Check browser permissions.');
   }
 }
 
@@ -888,7 +1100,37 @@ function stopMic() {
   listening = false;
   document.getElementById('micBtn').classList.remove('listening');
   document.getElementById('waveBox').classList.remove('active');
-  try { recognition.stop(); } catch (e) {}
+  try { mediaRecorder && mediaRecorder.state !== 'inactive' && mediaRecorder.stop(); } catch (e) {}
+}
+
+async function transcribeRecording() {
+  if (!recordedChunks.length) return;
+  transcribing = true;
+  const micBtn = document.getElementById('micBtn');
+  micBtn.classList.add('transcribing');
+  micBtn.textContent = '⏳';
+
+  try {
+    const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+    const form = new FormData();
+    form.append('audio', blob, 'command.webm');
+
+    const res = await fetch('/voice/transcribe', { method: 'POST', body: form });
+    const data = await res.json();
+
+    if (data.ok && data.transcript) {
+      chatInput.value = data.transcript;
+      sendMessage();
+    } else if (!res.ok || !data.ok) {
+      console.error('Voice transcription failed:', data.error || res.statusText);
+    }
+  } catch (e) {
+    console.error('Voice transcription error:', e);
+  } finally {
+    transcribing = false;
+    micBtn.classList.remove('transcribing');
+    micBtn.textContent = '🎤';
+  }
 }
 
 /* INIT */

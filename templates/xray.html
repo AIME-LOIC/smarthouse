@@ -169,75 +169,36 @@
       pointer-events: auto;
     }
 
-    /* ---------- 3D companion panel: small, floats beside the story text, opposite side, hero-themed ---------- */
-    .story-3d-panel {
-      position: fixed;
-      width: min(32vw, 400px);
-      border-radius: 1.5rem;
-      overflow: hidden;
-      background: rgba(10, 15, 40, 0.55);
-      border: 1px solid rgba(124, 156, 255, 0.22);
-      box-shadow: 0 20px 60px rgba(3, 6, 20, 0.55), 0 0 40px rgba(79, 114, 255, 0.18), inset 0 0 0 1px rgba(255,255,255,0.03);
-      backdrop-filter: blur(10px);
-      z-index: 30;
-      opacity: 0;
-      pointer-events: none;
-      transition: left .55s cubic-bezier(.22,.9,.32,1), right .55s cubic-bezier(.22,.9,.32,1),
-                  top .45s ease, height .45s ease, opacity .5s ease;
-    }
-    .story-3d-panel.is-visible { opacity: 1; }
-    .story-3d-panel::before {
-      content: '';
-      position: absolute;
-      inset: -1px;
-      border-radius: inherit;
-      padding: 1px;
-      background: linear-gradient(135deg, rgba(79,114,255,0.55), rgba(162,89,255,0.35), transparent 60%);
-      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-      -webkit-mask-composite: xor;
-      mask-composite: exclude;
-      pointer-events: none;
-      z-index: 2;
-    }
-    .story-3d-panel-inner { width: 100%; height: 100%; position: relative; z-index: 1; }
-    .story-3d-frame { width: 100%; height: 100%; display: block; border: 0; background: #060a1a; }
-    .story-3d-tag {
-      position: absolute;
-      top: 12px;
-      left: 14px;
-      z-index: 3;
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: #A7B8FF;
-      background: rgba(4, 8, 20, 0.55);
-      padding: 4px 9px;
-      border-radius: 999px;
-      border: 1px solid rgba(124,156,255,0.25);
-    }
-    @media (max-width: 1023px) {
-      .story-3d-panel { display: none; }
-    }
-
     /* ---------- narrative sections (about content, matched to dark glass theme) ---------- */
-    .story-beat { min-height: 100vh; display: flex; align-items: center; padding: 6vh 8vw; }
-    .story-beat .copy { max-width: 520px; opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s ease; }
+    .story-beat { min-height: 100vh; display: flex; align-items: center; gap: 6vw; padding: 6vh 8vw; }
+    .story-beat.right { flex-direction: row-reverse; }
+    .story-beat .copy { flex: 1 1 460px; max-width: 520px; opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s ease; }
     .story-beat .copy.show { opacity: 1; transform: translateY(0); }
     .story-beat .eyebrow { font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600; color: #7C9CFF; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 14px; display: inline-block; }
     .story-beat h2 { font-size: clamp(28px, 4vw, 44px); line-height: 1.1; letter-spacing: -1px; margin-bottom: 16px; font-weight: 800; }
     .story-beat p { color: #9AA5C0; font-size: 15.5px; line-height: 1.7; max-width: 460px; }
-    .story-beat.right { justify-content: flex-end; }
-    .story-beat.right .copy { text-align: right; margin-left: auto; }
     .story-stat-row { display: flex; gap: 30px; margin-top: 24px; }
-    .story-beat.right .story-stat-row { justify-content: flex-end; }
     .story-stat b { display: block; font-size: 22px; font-weight: 700; color: #7C9CFF; }
     .story-stat span { font-size: 11px; color: #6B7593; }
     .story-feature-list { list-style: none; margin-top: 20px; display: flex; flex-direction: column; gap: 11px; max-width: 460px; }
-    .story-beat.right .story-feature-list { margin-left: auto; }
     .story-feature-list li { display: flex; align-items: baseline; gap: 10px; font-size: 14.5px; color: #E4E8F5; }
-    .story-beat.right .story-feature-list li { flex-direction: row-reverse; }
     .story-feature-list li::before { content: '—'; color: #7C9CFF; }
+
+    /* flat 2D visual column (replaces the old drop-shadow / hover-tilt card look) */
+    .story-visual { flex: 1 1 420px; display: flex; align-items: center; justify-content: center; }
+    .story-visual img {
+      width: 100%;
+      max-width: 480px;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
+      border-radius: 1.25rem;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      /* flat, no drop-shadow / no 3D tilt */
+    }
+    @media (max-width: 900px) {
+      .story-beat, .story-beat.right { flex-direction: column; }
+      .story-visual img { max-width: 100%; }
+    }
     #site-footer { border-top: 1px solid rgba(255,255,255,0.08); padding: 64px 8vw 32px; position: relative; z-index: 10; }
     #site-footer .footer-grid { display: flex; justify-content: space-between; gap: 48px; flex-wrap: wrap; max-width: 1100px; margin: 0 auto; }
     #site-footer .footer-brand p { color: #6B7593; font-size: 13.5px; max-width: 260px; line-height: 1.6; margin-top: 8px; }
@@ -314,8 +275,27 @@
       .lg\:text-[5\.5rem] { font-size: 2.5rem; }
       .text-2xl { font-size: 1.6rem; }
       .lg\:text-3xl { font-size: 1.6rem; }
-      .btn-primary,
-      .btn-secondary { width: 100%; justify-content: center; }
+      .hero-cta .btn-primary,
+      .hero-cta .btn-secondary { width: 100%; justify-content: center; }
+    }
+
+    /* ---------- header / nav buttons: scale independently from hero buttons ---------- */
+    .site-header { flex-wrap: wrap; row-gap: 10px; }
+    .nav-cta { flex-shrink: 0; }
+    .nav-cta .btn-primary,
+    .nav-cta .btn-secondary {
+      white-space: nowrap;
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+    @media (max-width: 480px) {
+      .nav-cta { gap: 8px !important; }
+      .nav-cta .btn-primary,
+      .nav-cta .btn-secondary {
+        padding: 0.5rem 0.9rem;
+        font-size: 0.8rem;
+      }
+      .brand-name { font-size: 1.05rem; }
     }
 
   </style>
@@ -326,9 +306,9 @@
 <div class="bg-glow top-0 left-0 -translate-x-1/4 -translate-y-1/4"></div>
 <div class="bg-glow bottom-0 right-0 translate-x-1/4 translate-y-1/4"></div>
 <!-- BEGIN: Navigation -->
-<header class="container mx-auto px-6 py-4 flex items-center justify-between relative z-50">
-<div class="flex items-center gap-2">
-<svg fill="none" height="32" viewBox="0 0 32 32" width="32" xmlns="http://www.w3.org/2000/svg">
+<header class="site-header container mx-auto px-4 sm:px-6 py-4 flex items-center justify-between relative z-50">
+<div class="flex items-center gap-2 min-w-0">
+<svg fill="none" height="32" viewBox="0 0 32 32" width="32" xmlns="http://www.w3.org/2000/svg" class="shrink-0">
 <path d="M8 8V24H12V18H20V14H12V12H22V8H8Z" fill="url(#paint0_linear)"></path>
 <path d="M8 8H12L24 24H20L8 8Z" fill="#4F72FF" fill-opacity="0.5"></path>
 <defs>
@@ -338,7 +318,7 @@
 </linearGradient>
 </defs>
 </svg>
-<span class="text-xl font-bold tracking-wide">FRIDAY</span>
+<span class="brand-name text-xl font-bold tracking-wide truncate">FRIDAY</span>
 </div>
 <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-gray-300">
 <a class="hover:text-white transition-colors" href="#">Features</a>
@@ -347,9 +327,9 @@
 <a class="hover:text-white transition-colors" href="#">About</a>
 <a class="hover:text-white transition-colors" href="#">Contact</a>
 </nav>
-  <div class="flex items-center gap-4">
-  <a href="/login" class="btn-secondary px-6 py-2 rounded-full text-sm font-medium" role="button">Login</a>
-  <a href="/login" class="btn-primary px-6 py-2 rounded-full text-sm font-medium" role="button">Get Started</a>
+  <div class="nav-cta flex items-center gap-2 sm:gap-4">
+  <a href="/login" class="btn-secondary px-4 sm:px-6 py-2 rounded-full text-sm font-medium" role="button">Login</a>
+  <a href="/login" class="btn-primary px-4 sm:px-6 py-2 rounded-full text-sm font-medium" role="button">Get Started</a>
   </div>
 </header>
 <!-- END: Navigation -->
@@ -366,12 +346,12 @@
 <p class="text-gray-400 text-base mb-6 max-w-md leading-relaxed">
         Control your smart home, monitor electricity, view blueprints and interact naturally with AI.
       </p>
-<div class="flex flex-wrap items-center gap-4 mb-6">
+<div class="hero-cta flex flex-wrap items-center gap-4 mb-6">
 <a href="/login" class="btn-primary px-6 py-3 rounded-full font-semibold flex items-center gap-2" role="button">
           Get Started
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
 </a>
-<button class="btn-secondary px-6 py-3 rounded-full font-semibold flex items-center gap-2 text-gray-300 hover:text-white" onclick="document.getElementById('story').scrollIntoView({ behavior: 'smooth' })">
+<button class="btn-secondary px-6 py-3 rounded-full font-semibold flex items-center gap-2 text-gray-300 hover:text-white">
           Watch Demo
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
 </button>
@@ -433,7 +413,7 @@
 <!-- UI Cards Overlay -->
 <div class="absolute inset-0 w-full h-full z-10 hidden md:block">
 <!-- Electricity Usage Card -->
-<div class="glass-panel p-4 absolute top-[2%] right-[8%] w-[270px] transform translate-y-4 hover:-translate-y-2 transition-transform duration-300 backdrop-blur-xl bg-[#0a0f28]/70">
+<div class="glass-panel p-4 absolute top-[2%] right-[8%] w-[270px] transition-colors duration-300 backdrop-blur-xl bg-[#0a0f28]/70">
 <div class="flex items-center gap-2 mb-3 text-gray-300">
 <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
 <span class="text-sm font-medium">Electricity Usage</span>
@@ -452,7 +432,7 @@
 </div>
 </div>
 <!-- Living Room Light Card -->
-<div class="glass-panel p-4 absolute top-[45%] right-[-3%] w-[260px] transform -translate-y-1/2 translate-x-4 hover:translate-x-2 transition-transform duration-300 flex items-center justify-between gap-4 backdrop-blur-xl bg-[#0a0f28]/70">
+<div class="glass-panel p-4 absolute top-[45%] right-[-3%] w-[260px] -translate-y-1/2 transition-colors duration-300 flex items-center justify-between gap-4 backdrop-blur-xl bg-[#0a0f28]/70">
 <div class="flex-1">
 <h4 class="text-sm text-gray-300 mb-2">Living Room Light</h4>
 <div class="text-2xl font-bold text-blue-400 mb-3">80%</div>
@@ -467,7 +447,7 @@
 </div>
 </div>
 <!-- Security System Card -->
-<div class="glass-panel p-4 absolute bottom-[6%] right-[4%] w-[240px] transform translate-y-4 hover:-translate-y-2 transition-transform duration-300 flex items-center justify-between gap-4 backdrop-blur-xl bg-[#0a0f28]/70">
+<div class="glass-panel p-4 absolute bottom-[6%] right-[4%] w-[240px] transition-colors duration-300 flex items-center justify-between gap-4 backdrop-blur-xl bg-[#0a0f28]/70">
 <div>
 <h4 class="text-sm text-gray-300 mb-1">Security System</h4>
 <div class="text-green-400 font-medium text-lg">Active</div>
@@ -505,19 +485,11 @@
 </div>
 <!-- END: hero-screen (locked to 100vh) -->
 
-<!-- BEGIN: 3D companion panel — fixed, tracks the active story beat, swaps to the side opposite the text -->
-<div class="story-3d-panel" id="story3dPanel" aria-hidden="true">
-<span class="story-3d-tag">Live digital twin</span>
-<div class="story-3d-panel-inner">
-<iframe class="story-3d-frame" id="home-3d-frame" src="/showcase?embed=1" title="3D Smart House Scroll Animation" loading="lazy"></iframe>
-</div>
-</div>
-<!-- END: 3D companion panel -->
-
 <!-- BEGIN: Story sections (content from about.html, matched to dark glass theme) -->
 <main id="story">
 
 <section class="story-beat">
+<div class="story-visual"><img alt="FRIDAY The problem" loading="lazy" src="static/image_1.jpeg"/></div>
 <div class="copy">
 <span class="eyebrow">01 — The problem</span>
 <h2>The invisible problem.</h2>
@@ -531,6 +503,7 @@
 </section>
 
 <section class="story-beat right">
+<div class="story-visual"><img alt="FRIDAY The solution" loading="lazy" src="static/image_2.jpeg"/></div>
 <div class="copy">
 <span class="eyebrow">02 — The solution</span>
 <h2>Meet FRIDAY.</h2>
@@ -545,6 +518,7 @@
 </section>
 
 <section class="story-beat">
+<div class="story-visual"><img alt="FRIDAY Core feature" loading="lazy" src="static/image_3.jpeg"/></div>
 <div class="copy">
 <span class="eyebrow">03 — Core feature</span>
 <h2>Your house becomes alive.</h2>
@@ -558,6 +532,7 @@
 </section>
 
 <section class="story-beat right">
+<div class="story-visual"><img alt="FRIDAY Interface" loading="lazy" src="static/image_4.jpeg"/></div>
 <div class="copy">
 <span class="eyebrow">04 — Interface</span>
 <h2>Interactive blueprint.</h2>
@@ -572,6 +547,7 @@
 </section>
 
 <section class="story-beat">
+<div class="story-visual"><img alt="FRIDAY Intelligence" loading="lazy" src="static/image_5.jpeg"/></div>
 <div class="copy">
 <span class="eyebrow">05 — Intelligence</span>
 <h2>FRIDAY intelligence.</h2>
@@ -587,6 +563,7 @@
 </section>
 
 <section class="story-beat right">
+<div class="story-visual"><img alt="FRIDAY Connectivity" loading="lazy" src="static/image_6.jpeg"/></div>
 <div class="copy">
 <span class="eyebrow">06 — Connectivity</span>
 <h2>Remote control — anywhere in the world.</h2>
@@ -601,6 +578,7 @@
 </section>
 
 <section class="story-beat">
+<div class="story-visual"><img alt="FRIDAY Architecture" loading="lazy" src="static/image_7.jpeg"/></div>
 <div class="copy">
 <span class="eyebrow">07 — Architecture</span>
 <h2>Technology stack.</h2>
@@ -613,6 +591,7 @@
 </section>
 
 <section class="story-beat right">
+<div class="story-visual"><img alt="FRIDAY Differentiation" loading="lazy" src="static/image_8.jpeg"/></div>
 <div class="copy">
 <span class="eyebrow">08 — Differentiation</span>
 <h2>Why FRIDAY is different.</h2>
@@ -629,6 +608,7 @@
 </section>
 
 <section class="story-beat" style="min-height: 100vh;">
+<div class="story-visual"><img alt="FRIDAY Vision" loading="lazy" src="static/image_9.jpeg"/></div>
 <div class="copy">
 <span class="eyebrow">09 — Vision</span>
 <h2>The future of smart living starts here.</h2>
@@ -687,83 +667,5 @@ function updateBeats() {
 }
 window.addEventListener('scroll', updateBeats, { passive: true });
 updateBeats();
-
-/* ---- 3D companion panel: small, sits opposite the active beat's text, sized to match it ---- */
-const storyRoot = document.getElementById('story');
-const panel = document.getElementById('story3dPanel');
-const home3dFrame = document.getElementById('home-3d-frame');
-const storyBeatEls = Array.from(document.querySelectorAll('.story-beat'));
-const EDGE_GAP = '6vw';
-const TOP_MARGIN = 96;   // keep clear of the fixed nav
-const BOTTOM_MARGIN = 40;
-
-function isDesktopLayout() {
-  return window.innerWidth >= 1024;
-}
-
-function updateStoryPanel() {
-  if (!storyRoot || !panel) return;
-  if (!isDesktopLayout()) {
-    panel.classList.remove('is-visible');
-    return;
-  }
-
-  const vh = window.innerHeight;
-  const storyRect = storyRoot.getBoundingClientRect();
-  const inView = storyRect.top < vh && storyRect.bottom > 0;
-  panel.classList.toggle('is-visible', inView);
-  if (!inView) return;
-
-  // find whichever beat's copy block is closest to viewport center right now
-  let active = null;
-  let closest = Infinity;
-  storyBeatEls.forEach(beat => {
-    const copy = beat.querySelector('.copy');
-    if (!copy) return;
-    const r = copy.getBoundingClientRect();
-    const dist = Math.abs((r.top + r.height / 2) - vh / 2);
-    if (dist < closest) {
-      closest = dist;
-      active = { beat, rect: r };
-    }
-  });
-  if (!active) return;
-
-  const textIsRight = active.beat.classList.contains('right');
-
-  // panel goes on the opposite side from the text
-  if (textIsRight) {
-    panel.style.left = EDGE_GAP;
-    panel.style.right = 'auto';
-  } else {
-    panel.style.right = EDGE_GAP;
-    panel.style.left = 'auto';
-  }
-
-  // size/position the panel to match the current text block's height
-  let height = Math.max(220, Math.min(active.rect.height, vh - TOP_MARGIN - BOTTOM_MARGIN));
-  let top = active.rect.top + (active.rect.height - height) / 2;
-  top = Math.max(TOP_MARGIN, Math.min(top, vh - height - BOTTOM_MARGIN));
-
-  panel.style.top = top + 'px';
-  panel.style.height = height + 'px';
-}
-
-function updateStoryProgress() {
-  if (!storyRoot || !home3dFrame || !home3dFrame.contentWindow) return;
-  const total = storyRoot.offsetHeight - window.innerHeight;
-  const scrolled = window.scrollY - (storyRoot.offsetTop || 0);
-  const progress = total > 0 ? Math.min(1, Math.max(0, scrolled / total)) : 0;
-  home3dFrame.contentWindow.postMessage({ type: 'friday-3d-progress', progress }, window.location.origin);
-}
-
-function onStoryScrollOrResize() {
-  updateStoryPanel();
-  updateStoryProgress();
-}
-window.addEventListener('scroll', onStoryScrollOrResize, { passive: true });
-window.addEventListener('resize', onStoryScrollOrResize);
-home3dFrame?.addEventListener('load', onStoryScrollOrResize);
-onStoryScrollOrResize();
 </script>
 </body></html>
